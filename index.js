@@ -13,6 +13,7 @@ const CLIENT_ID = '1476138650331906163';
 const GUILD_ID = '969420681349574677';
 const ROLE_AUTORIZADO = '1476467289418367158';
 const ROLE_OBJETIVO = '1476467289418367158';
+const CANAL_PERMITIDO = '1476468295006818304'; // ✅ Canal donde SÍ funciona
 const CANAL_URL = 'https://discord.com/channels/969420681349574677/1476467569664852009';
 
 const client = new Client({
@@ -69,6 +70,14 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.guildId !== GUILD_ID) return;
 
+  // 🔒 Bloquea uso fuera del canal permitido
+  if (interaction.channelId !== CANAL_PERMITIDO) {
+    return interaction.reply({
+      content: 'Este comando solo se puede usar en el canal autorizado.',
+      ephemeral: true
+    });
+  }
+
   try {
 
     const member = await interaction.guild.members.fetch(interaction.user.id);
@@ -77,7 +86,6 @@ client.on('interactionCreate', async (interaction) => {
       return interaction.reply({ content: 'No autorizado.', ephemeral: true });
     }
 
-    // Evita error de 3 segundos
     await interaction.deferReply({ ephemeral: true });
 
     const targets = interaction.guild.members.cache.filter(m =>
