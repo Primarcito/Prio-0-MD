@@ -8,7 +8,9 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder
 } = require('discord.js');
 
 const TOKEN = process.env.TOKEN;
@@ -29,32 +31,44 @@ const client = new Client({
   ]
 });
 
-// ─── Construye el embed + botones del panel ───────────────────────────────────
+// ─── Construye el embed + botón del panel ────────────────────────────────────
 function buildPanel() {
   const embed = new EmbedBuilder()
     .setTitle('🦣 Panel Mamut')
     .setColor(0x8B0000)
-    .setDescription('Presioná el botón de la ciudad para notificar a toda la guild por DM.')
+    .setDescription('Presioná el botón para notificar el mamut a toda la guild por DM.')
     .addFields(
-      { name: '📢 /mamut', value: 'Notifica el lock con la ciudad elegida (3 DMs por persona)', inline: false },
-      { name: '💬 /mensaje', value: 'Envía un mensaje libre a todos los miembros del rol', inline: false }
+      { name: '📢 /mamut', value: 'Notifica el lock con la ciudad elegida (3 DMs por persona)', inline: false }
     )
     .setFooter({ text: 'Solo puede usarlo quien tenga el rol autorizado' });
 
-  // Dos filas de botones (máx 5 por fila)
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('mamut_Lymhurst').setLabel('Lymhurst').setStyle(ButtonStyle.Danger).setEmoji('🦣'),
-    new ButtonBuilder().setCustomId('mamut_Martlock').setLabel('Martlock').setStyle(ButtonStyle.Danger).setEmoji('🦣'),
-    new ButtonBuilder().setCustomId('mamut_Fort Sterling').setLabel('Fort Sterling').setStyle(ButtonStyle.Danger).setEmoji('🦣'),
-    new ButtonBuilder().setCustomId('mamut_Thetford').setLabel('Thetford').setStyle(ButtonStyle.Danger).setEmoji('🦣'),
-    new ButtonBuilder().setCustomId('mamut_Bridgewatch').setLabel('Bridgewatch').setStyle(ButtonStyle.Danger).setEmoji('🦣')
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('abrir_selector_mamut')
+      .setLabel('MAMUT')
+      .setStyle(ButtonStyle.Danger)
+      .setEmoji('🦣')
   );
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('mamut_Roja').setLabel('Roja').setStyle(ButtonStyle.Danger).setEmoji('🦣')
-  );
+  return { embeds: [embed], components: [row] };
+}
 
-  return { embeds: [embed], components: [row1, row2] };
+// ─── Construye el selector de ciudades ───────────────────────────────────────
+function buildSelectorCiudades() {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('selector_ciudad')
+    .setPlaceholder('Seleccioná la ciudad del lock...')
+    .addOptions(
+      CIUDADES.map(c =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(c)
+          .setValue(c)
+          .setEmoji('🦣')
+      )
+    );
+
+  const row = new ActionRowBuilder().addComponents(select);
+  return { content: '🦣 **¿En qué ciudad salió el mamut?**', components: [row], ephemeral: true };
 }
 
 // ─── Envía DMs a todos los miembros del rol ───────────────────────────────────
@@ -84,8 +98,16 @@ ${CANAL_URL}`;
 
 // ─── Crea o actualiza el panel en el canal ────────────────────────────────────
 async function sincronizarPanel(guild) {
-  const canal = await guild.channels.fetch(CANAL_PERMITIDO);
-  if (!canal) return;
+  console.log(`Buscando canal: ${CANAL_PERMITIDO}`);
+  const canal = await guild.channels.fetch(CANAL_PERMITIDO).catch(err => {
+    console.error('Error al buscar canal:', err.message);
+    return null;
+  });
+  if (!canal) {
+    console.error('Canal no encontrado o sin acceso.');
+    return;
+  }
+  console.log(`Canal encontrado: #${canal.name}`);
 
   // Busca si ya existe un mensaje del bot con el panel
   const mensajes = await canal.messages.fetch({ limit: 50 });
@@ -155,14 +177,24 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
 
-    // ── Botones ──────────────────────────────────────────────────────────────
-    if (interaction.isButton() && interaction.customId.startsWith('mamut_')) {
+    // ── Botón principal MAMUT → abre selector ────────────────────────────────
+    if (interaction.isButton() && interaction.customId === 'abrir_selector_mamut') {
 
       if (!autorizado) {
         return interaction.reply({ content: '❌ No autorizado.', ephemeral: true });
       }
 
-      const lock = interaction.customId.replace('mamut_', '');
+      return interaction.reply(buildSelectorCiudades());
+    }
+
+    // ── Selector de ciudad → envía DMs ───────────────────────────────────────
+    if (interaction.isStringSelectMenu() && interaction.customId === 'selector_ciudad') {
+
+      if (!autorizado) {
+        return interaction.reply({ content: '❌ No autorizado.', ephemeral: true });
+      }
+
+      const lock = interaction.values[0];
       await interaction.deferReply({ ephemeral: true });
 
       const contador = await enviarMamut(interaction.guild, lock);
