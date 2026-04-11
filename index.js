@@ -24,6 +24,18 @@ const CANAL_URL = 'https://discord.com/channels/969420681349574677/1476467569664
 
 const CIUDADES = ['Lymhurst', 'Martlock', 'Fort Sterling', 'Thetford', 'Bridgewatch', 'Roja'];
 
+const ROLE_ADMIN = '983987481961717782'; // Rol para /panel y /logs
+
+// ─── Historial en memoria ─────────────────────────────────────────────────────
+const historialMamut = []; // { usuario, ciudad, fecha, mensajes }
+
+function registrarLog(usuario, ciudad, mensajes) {
+  const fecha = new Date().toLocaleString('es-AR', { timeZone: 'America/Buenos_Aires' });
+  historialMamut.unshift({ usuario, ciudad, fecha, mensajes });
+  if (historialMamut.length > 20) historialMamut.pop(); // Máximo 20 entradas
+  console.log(`[MAMUT] ${fecha} | ${usuario} | ${ciudad} | ${mensajes} msgs`);
+}
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -36,7 +48,7 @@ function buildPanel() {
   const embed = new EmbedBuilder()
     .setTitle('🦣 Panel Mamut')
     .setColor(0x8B0000)
-    .setDescription('Presioná el botón para notificar el mamut a toda la guild por DM.')
+    .setDescription('Clickeá el botón de mamut si aparece un felpudito.')
     .addFields(
       { name: '📢 /mamut', value: 'Notifica el lock con la ciudad elegida (3 DMs por persona)', inline: false }
     )
@@ -144,12 +156,18 @@ client.once('clientReady', async () => {
       ),
     new SlashCommandBuilder()
       .setName('mensaje')
-      .setDescription('Actualizar estado')
+      .setDescription('Envía un mensaje a todos los miembros del rol')
       .addStringOption(option =>
         option.setName('texto')
           .setDescription('Texto a enviar')
           .setRequired(true)
-      )
+      ),
+    new SlashCommandBuilder()
+      .setName('panel')
+      .setDescription('🔧 Recrea el panel en el canal (solo admins)'),
+    new SlashCommandBuilder()
+      .setName('logs')
+      .setDescription('📋 Muestra el historial de mamuts enviados (solo admins)')
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -198,6 +216,7 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.deferReply({ ephemeral: true });
 
       const contador = await enviarMamut(interaction.guild, lock);
+      registrarLog(interaction.user.tag, lock, contador);
       return interaction.editReply(`✅ Mamut **${lock}** notificado. Enviados ${contador} mensajes.`);
     }
 
@@ -213,13 +232,14 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'mamut') {
       const lock = interaction.options.getString('lock');
       const contador = await enviarMamut(interaction.guild, lock);
+      registrarLog(interaction.user.tag, lock, contador);
       return interaction.editReply(`✅ Enviados ${contador} mensajes. Lock: **${lock}**`);
     }
 
     if (interaction.commandName === 'mensaje') {
       const texto = interaction.options.getString('texto');
 
-      await interaction.guild.members.fetch(); // ✅ Fix también aquí
+      await interaction.guild.members.fetch();
       const targets = interaction.guild.members.cache.filter(m => m.roles.cache.has(ROLE_OBJETIVO));
 
       let contador = 0;
@@ -232,6 +252,45 @@ client.on('interactionCreate', async (interaction) => {
         }
       }
       return interaction.editReply(`✅ Enviados ${contador} mensajes.`);
+    }
+
+    // ── /panel — solo ROLE_ADMIN ──────────────────────────────────────────────
+    if (interaction.commandName === 'panel') {
+      if (!member.roles.cache.has(ROLE_ADMIN)) {
+        return interaction.editReply('❌ No tenés permiso para usar este comando.');
+      }
+
+      const canal = await interaction.guild.channels.fetch(CANAL_PERMITIDO);
+      const mensajes = await canal.messages.fetch({ limit: 50 });
+      const panelExistente = mensajes.find(
+        m => m.author.id === client.user.id && m.embeds.length > 0
+      );
+      if (panelExistente) await panelExistente.delete();
+      await canal.send(buildPanel());
+      return interaction.editReply('✅ Panel recreado.');
+    }
+
+    // ── /logs — solo ROLE_ADMIN ───────────────────────────────────────────────
+    if (interaction.commandName === 'logs') {
+      if (!member.roles.cache.has(ROLE_ADMIN)) {
+        return interaction.editReply('❌ No tenés permiso para usar este comando.');
+      }
+
+      if (historialMamut.length === 0) {
+        return interaction.editReply('📋 No hay registros todavía.');
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('📋 Historial de Mamuts')
+        .setColor(0x8B0000)
+        .setDescription(
+          historialMamut.map((e, i) =>
+            `**${i + 1}.** \`${e.fecha}\` — **${e.usuario}** activó **${e.ciudad}** (${e.mensajes} msgs)`
+          ).join('\n')
+        )
+        .setFooter({ text: `Últimos ${historialMamut.length} registros` });
+
+      return interaction.editReply({ embeds: [embed] });
     }
 
   } catch (err) {
