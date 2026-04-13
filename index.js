@@ -26,7 +26,10 @@ const CIUDADES = ['Lymhurst', 'Martlock', 'Fort Sterling', 'Thetford', 'Bridgewa
 
 const ROLE_ADMIN = '983987481961717782'; // Rol para /panel y /logs
 
-// ─── Historial en memoria ─────────────────────────────────────────────────────
+// ─── Cooldown para evitar doble disparo ──────────────────────────────────────
+const cooldowns = new Set();
+
+
 const historialMamut = []; // { usuario, ciudad, fecha, mensajes }
 
 function registrarLog(usuario, ciudad, mensajes) {
@@ -85,8 +88,7 @@ function buildSelectorCiudades() {
 
 // ─── Envía DMs a todos los miembros del rol ───────────────────────────────────
 async function enviarMamut(guild, lock) {
-  await guild.members.fetch(); // ✅ Fix: asegura que todos los miembros estén cargados
-
+  // Los miembros ya están en caché desde el arranque, no se vuelve a fetchear
   const targets = guild.members.cache.filter(m => m.roles.cache.has(ROLE_OBJETIVO));
 
   const mensajeFinal = `---- 🦣🦣🦣 ----
@@ -176,6 +178,11 @@ client.once('clientReady', async () => {
 
   // Sincroniza el panel al iniciar
   const guild = await client.guilds.fetch(GUILD_ID);
+
+  // Carga todos los miembros en caché una sola vez al arrancar
+  await guild.members.fetch();
+  console.log(`Miembros cargados: ${guild.members.cache.size}`);
+
   await sincronizarPanel(guild);
 });
 
@@ -212,12 +219,38 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: '❌ No autorizado.', ephemeral: true });
       }
 
-      const lock = interaction.values[0];
-      await interaction.deferReply({ ephemeral: true });
+      // Evita doble disparo si el mismo usuario presiona dos veces rápido
+      if (cooldowns.has(interaction.user.id)) {
+        return interaction.reply({ content: '⏳ Espera un momento, ya hay un mamut en proceso.', ephemeral: true });
+      }
+      cooldowns.add(interaction.user.id);
 
-      const contador = await enviarMamut(interaction.guild, lock);
-      registrarLog(interaction.user.tag, lock, contador);
-      return interaction.editReply(`✅ Mamut **${lock}** notificado. Enviados ${contador} mensajes.`);
+      const lock = interaction.values[0];
+
+      // Desactiva el selector visualmente antes de enviar
+      const selectDesactivado = new StringSelectMenuBuilder()
+        .setCustomId('selector_ciudad_usado')
+        .setPlaceholder(`✅ ${lock} seleccionado`)
+        .setDisabled(true)
+        .addOptions(new StringSelectMenuOptionBuilder().setLabel(lock).setValue(lock));
+
+      await interaction.update({
+        content: `🦣 Enviando mamut **${lock}**...`,
+        components: [new ActionRowBuilder().addComponents(selectDesactivado)]
+      });
+
+      try {
+        const contador = await enviarMamut(interaction.guild, lock);
+        registrarLog(interaction.user.tag, lock, contador);
+        await interaction.editReply({
+          content: `✅ Mamut **${lock}** notificado. Enviados ${contador} mensajes.`,
+          components: []
+        });
+      } finally {
+        cooldowns.delete(interaction.user.id);
+      }
+
+      return;
     }
 
     // ── Slash commands ───────────────────────────────────────────────────────
@@ -239,7 +272,6 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'mensaje') {
       const texto = interaction.options.getString('texto');
 
-      await interaction.guild.members.fetch();
       const targets = interaction.guild.members.cache.filter(m => m.roles.cache.has(ROLE_OBJETIVO));
 
       let contador = 0;
