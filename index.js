@@ -46,16 +46,34 @@ const client = new Client({
   ]
 });
 
+const IMG_PANEL = 'https://i.imgur.com/LLvS7zA.jpeg';
+const IMG_MAMUT = 'https://i.imgur.com/hWRtOdm.jpeg';
+
+// Colores por ciudad para el segundo embed
+const COLORES_CIUDAD = {
+  'Lymhurst':     0x3ba55d, // verde
+  'Martlock':     0x4a90d9, // azul
+  'Fort Sterling': 0xe8e8e8, // blanco
+  'Thetford':     0x9b59b6, // morado
+  'Bridgewatch':  0xf4a100, // amarillo
+  'Roja':         0xe74c3c, // rojo
+};
+
 // ─── Construye el embed + botón del panel ────────────────────────────────────
 function buildPanel() {
+  const ahora = new Date().toUTCString().slice(0, 25); // hora UTC
+
   const embed = new EmbedBuilder()
-    .setTitle('🦣 Panel Mamut')
     .setColor(0x8B0000)
-    .setDescription('Clickeá el botón de mamut si aparece un felpudito.')
-    .addFields(
-      { name: '📢 /mamut', value: 'Notifica el lock con la ciudad elegida (3 DMs por persona)', inline: false }
+    .setImage(IMG_PANEL)
+    .setDescription(
+      '## 🦣 Panel Mamut — TyrannT\nClickea el boton de mamut si aparece un felpudito.'
     )
-    .setFooter({ text: 'Solo puede usarlo quien tenga el rol autorizado' });
+    .addFields(
+      { name: '📢 /mamut', value: 'Notifica el lock con la ciudad elegida (3 DMs por persona).', inline: false },
+      { name: '\u200b', value: '🔴 Solo puede usarlo quien tenga el rol autorizado.', inline: false }
+    )
+    .setFooter({ text: `Prio • Actualizado ${ahora} UTC` });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -87,14 +105,10 @@ function buildSelectorCiudades() {
 }
 
 // ─── Envía DMs a todos los miembros del rol ───────────────────────────────────
-async function enviarMamut(guild, lock) {
-  // Los miembros ya están en caché desde el arranque, no se vuelve a fetchear
+async function enviarMamut(guild, lock, canal, activadoPor) {
   const targets = guild.members.cache.filter(m => m.roles.cache.has(ROLE_OBJETIVO));
 
-  const mensajeFinal = `---- 🦣🦣🦣 ----
-**LOCK:** ||${lock}||
----- 🦣🦣🦣 ----
-${CANAL_URL}`;
+  const mensajeFinal = `---- 🦣🦣🦣 ----\n**LOCK:** ||${lock}||\n---- 🦣🦣🦣 ----\n${CANAL_URL}`;
 
   let contador = 0;
   for (const [, target] of targets) {
@@ -107,37 +121,57 @@ ${CANAL_URL}`;
       }
     }
   }
+
+  const horaUTC = new Date().toUTCString().slice(17, 22) + ' UTC';
+  const colorCiudad = COLORES_CIUDAD[lock] ?? 0x8B0000;
+
+  // Embed 1 — rojo con imagen del mamut
+  const embed1 = new EmbedBuilder()
+    .setColor(0x8B0000)
+    .setDescription(`## 🦣🦣🦣 MAMUT ACTIVO\nHay felpudito en **${lock}**`)
+    .setThumbnail(IMG_MAMUT);
+
+  // Embed 2 — color de la ciudad con los datos
+  const embed2 = new EmbedBuilder()
+    .setColor(colorCiudad)
+    .addFields(
+      { name: 'Ciudad', value: lock, inline: true },
+      { name: 'DMs enviados', value: `${contador} msgs`, inline: true },
+      { name: 'Activado por', value: activadoPor, inline: true },
+      { name: 'Hora', value: horaUTC, inline: true }
+    )
+    .setFooter({ text: 'TyrannT • Prio' })
+    .setTimestamp();
+
+  await canal.send({ content: `<@&${ROLE_OBJETIVO}>`, embeds: [embed1, embed2] });
+
   return contador;
 }
 
 // ─── Crea o actualiza el panel en el canal ────────────────────────────────────
 async function sincronizarPanel(guild) {
-  console.log(`Buscando canal: ${CANAL_PERMITIDO}`);
   const canal = await guild.channels.fetch(CANAL_PERMITIDO).catch(err => {
     console.error('Error al buscar canal:', err.message);
     return null;
   });
-  if (!canal) {
-    console.error('Canal no encontrado o sin acceso.');
-    return;
-  }
-  console.log(`Canal encontrado: #${canal.name}`);
+  if (!canal) { console.error('Canal no encontrado.'); return; }
 
-  // Busca si ya existe un mensaje del bot con el panel
+  // Borra mensajes anteriores del bot con embed (panel viejo)
   const mensajes = await canal.messages.fetch({ limit: 50 });
-  const panelExistente = mensajes.find(
-    m => m.author.id === client.user.id && m.embeds.length > 0
-  );
-
-  const panelData = buildPanel();
-
-  if (panelExistente) {
-    await panelExistente.edit(panelData);
-    console.log('Panel actualizado.');
-  } else {
-    await canal.send(panelData);
-    console.log('Panel creado.');
+  const paneles = mensajes.filter(m => m.author.id === client.user.id && m.embeds.length > 0);
+  for (const [, msg] of paneles) {
+    await msg.delete().catch(() => {});
   }
+
+  await canal.send(buildPanel());
+  console.log(`Panel reenviado.`);
+}
+
+// ─── Auto-reenvío del panel cada 1 hora ──────────────────────────────────────
+function iniciarAutoPanel(guild) {
+  setInterval(async () => {
+    await sincronizarPanel(guild);
+  }, 60 * 60 * 1000); // cada 1 hora
 }
 
 // ─── Ready ────────────────────────────────────────────────────────────────────
@@ -184,6 +218,7 @@ client.once('clientReady', async () => {
   console.log(`Miembros cargados: ${guild.members.cache.size}`);
 
   await sincronizarPanel(guild);
+  iniciarAutoPanel(guild);
 });
 
 // ─── Interacciones ────────────────────────────────────────────────────────────
@@ -240,8 +275,7 @@ client.on('interactionCreate', async (interaction) => {
       });
 
       try {
-        const contador = await enviarMamut(interaction.guild, lock);
-        registrarLog(interaction.user.tag, lock, contador);
+        const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag);        registrarLog(interaction.user.tag, lock, contador);
         await interaction.editReply({
           content: `✅ Mamut **${lock}** notificado. Enviados ${contador} mensajes.`,
           components: []
@@ -264,8 +298,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'mamut') {
       const lock = interaction.options.getString('lock');
-      const contador = await enviarMamut(interaction.guild, lock);
-      registrarLog(interaction.user.tag, lock, contador);
+      const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag);      registrarLog(interaction.user.tag, lock, contador);
       return interaction.editReply(`✅ Enviados ${contador} mensajes. Lock: **${lock}**`);
     }
 
