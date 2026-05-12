@@ -33,8 +33,8 @@ async function enviarMamut(guild, lock, canal, activadoPor) {
   for (const [, target] of targets) {
     for (let i = 0; i < config.DMS_POR_MIEMBRO; i++) {
       try {
-        const dmEmbed = buildDMEmbed(lock, i + 1);
-        await target.send({ embeds: [dmEmbed] });
+        const dmPayload = buildDMEmbed(lock, i + 1);
+        await target.send(dmPayload);
         contador++;
 
         // Pausa configurable entre cada DM
@@ -47,6 +47,21 @@ async function enviarMamut(guild, lock, canal, activadoPor) {
         break;
       }
     }
+  }
+
+  // Buscar mensajes viejos de confirmación de mamut y borrarlos
+  try {
+    const mensajes = await canal.messages.fetch({ limit: 50 });
+    const avisosViejos = mensajes.filter(
+      m => m.author.id === canal.client.user.id &&
+           m.embeds.length > 0 &&
+           m.embeds[0].description?.includes('MAMUT ACTIVADO')
+    );
+    for (const [, msg] of avisosViejos) {
+      await msg.delete().catch(() => {});
+    }
+  } catch (err) {
+    console.log('Error borrando avisos de mamut viejos:', err.message);
   }
 
   // Embed de confirmación al canal

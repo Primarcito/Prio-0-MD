@@ -122,7 +122,14 @@ function buildDMEmbed(ciudad, numeroDm) {
     .setFooter({ text: 'Prio0Bot • Alerta rápida MAMUT' })
     .setTimestamp();
 
-  return embed;
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('🔊 Unirse al Canal de Voz')
+      .setURL('https://discord.com/channels/969420681349574677/1476467569664852009')
+      .setStyle(ButtonStyle.Link)
+  );
+
+  return { embeds: [embed], components: [row] };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

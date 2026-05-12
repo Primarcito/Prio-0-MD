@@ -82,6 +82,33 @@ client.on('error', (err) => {
   console.error('Client error:', err);
 });
 
+/* ================= HANDLER DE PANEL PEGAJOSO ================= */
+let stickyTimeout = null;
+
+client.on('messageCreate', async (message) => {
+  if (message.guildId !== config.GUILD_ID) return;
+  if (message.channelId !== config.CANAL_PERMITIDO) return;
+
+  // Evitar bucle infinito: si el mensaje que se acaba de enviar ES el panel, lo ignoramos.
+  if (message.author.id === client.user.id) {
+    if (message.embeds.length > 0 && message.embeds[0].description?.includes('PANEL MAMUT')) {
+      return;
+    }
+  }
+
+  // Borrar el panel actual para que desaparezca de arriba
+  if (state.panelMessage) {
+    state.panelMessage.delete().catch(() => {});
+    state.panelMessage = null;
+  }
+
+  // Debounce: Esperar 2 segundos sin mensajes nuevos para recrearlo al fondo
+  if (stickyTimeout) clearTimeout(stickyTimeout);
+  stickyTimeout = setTimeout(async () => {
+    if (message.guild) await sincronizarPanel(message.guild);
+  }, 2000);
+});
+
 /* ================= SINCRONIZAR PANEL ================= */
 
 async function sincronizarPanel(guild) {
