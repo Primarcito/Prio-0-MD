@@ -91,7 +91,7 @@ client.on('messageCreate', async (message) => {
 
   // Evitar bucle infinito: si el mensaje que se acaba de enviar ES el panel, lo ignoramos.
   if (message.author.id === client.user.id) {
-    if (message.embeds.length > 0 && message.embeds[0].description?.includes('PANEL MAMUT')) {
+    if (message.embeds.length > 0 && message.embeds[0].footer?.text?.includes('TyrannT')) {
       return;
     }
   }
@@ -137,7 +137,7 @@ async function sincronizarPanel(guild) {
   const paneles = mensajes.filter(
     m => m.author.id === client.user.id &&
          m.embeds.length > 0 &&
-         m.embeds[0].description?.includes('PANEL MAMUT')
+         m.embeds[0].footer?.text?.includes('TyrannT')
   );
   for (const [, msg] of paneles) {
     await msg.delete().catch(() => {});

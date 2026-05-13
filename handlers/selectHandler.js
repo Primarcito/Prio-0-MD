@@ -22,23 +22,28 @@ module.exports = async function handleSelect(interaction) {
 
     const lock = interaction.values[0];
 
-    // Desactivar selector visualmente
+    // Responder INMEDIATAMENTE para evitar timeout de Discord (3s)
     await interaction.update({
       content: `🦣 Enviando mamut **${lock}**...`,
       components: [buildSelectorDesactivado(lock)]
     });
 
-    try {
-      const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag);
-      registrarLog(interaction.user.tag, lock, contador);
+    // Procesar DMs en background sin bloquear
+    (async () => {
+      try {
+        const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag);
+        registrarLog(interaction.user.tag, lock, contador);
 
-      await interaction.editReply({
-        content: `✅ Mamut **${lock}** notificado. Enviados \`${contador}\` mensajes.`,
-        components: []
-      });
-    } finally {
-      cooldownTimeout(interaction.user.id);
-    }
+        await interaction.editReply({
+          content: `✅ Mamut **${lock}** notificado. Enviados \`${contador}\` mensajes.`,
+          components: []
+        });
+      } catch (err) {
+        console.error('[MAMUT BG]', err);
+      } finally {
+        cooldownTimeout(interaction.user.id);
+      }
+    })();
 
     return;
   }
