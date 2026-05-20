@@ -1,11 +1,11 @@
-const config = require('../config');
+const { canUseMamut } = require('../permissions');
 const { enviarMamut, registrarLog } = require('../utils/mamut');
 
 module.exports = {
   async execute(interaction) {
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    if (!member.roles.cache.has(config.ROLE_AUTORIZADO)) {
-      return interaction.reply({ content: '❌ No autorizado.', ephemeral: true });
+    if (!canUseMamut(member)) {
+      return interaction.reply({ content: '❌ No tienes permiso para activar MAMUT.', ephemeral: true });
     }
 
     const lock = interaction.options.getString('lock');

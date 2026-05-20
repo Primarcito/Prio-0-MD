@@ -5,9 +5,9 @@ const { buildMamutConfirmacion, buildDMEmbed } = require('../embeds/mamutEmbeds'
 
 // ─── Registrar en el historial ────────────────────────────────────────────────
 
-function registrarLog(usuario, ciudad, mensajes) {
+function registrarLog(usuario, ciudad, mensajes, mapa = null) {
   const fecha = new Date().toLocaleString('es-AR', { timeZone: 'America/Buenos_Aires' });
-  state.historialMamut.unshift({ usuario, ciudad, fecha, mensajes });
+  state.historialMamut.unshift({ usuario, ciudad, mapa, fecha, mensajes });
 
   // Limitar tamaño
   if (state.historialMamut.length > config.MAX_HISTORIAL) {
@@ -24,30 +24,22 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function getRoleIds(roleIds) {
+  return Array.isArray(roleIds) ? roleIds : [roleIds];
+}
+
+function memberHasAnyRole(member, roleIds) {
+  return getRoleIds(roleIds).some(roleId => member.roles.cache.has(roleId));
+}
+
+function buildRoleMentions(roleIds) {
+  return getRoleIds(roleIds).map(roleId => `<@&${roleId}>`).join(' ');
+}
+
 // ─── Enviar DMs a todos los miembros del rol ──────────────────────────────────
 
-async function enviarMamut(guild, lock, canal, activadoPor) {
-  const targets = guild.members.cache.filter(m => m.roles.cache.has(config.ROLE_OBJETIVO));
-
-  let contador = 0;
-  for (const [, target] of targets) {
-    for (let i = 0; i < config.DMS_POR_MIEMBRO; i++) {
-      try {
-        const dmPayload = buildDMEmbed(lock, i + 1);
-        await target.send(dmPayload);
-        contador++;
-
-        // Pausa configurable entre cada DM
-        if (i < config.DMS_POR_MIEMBRO - 1) {
-          await delay(config.DM_DELAY_MS);
-        }
-      } catch (err) {
-        // Si el usuario tiene DMs cerrados, registrar y continuar al siguiente usuario
-        console.log(`Error enviando DM a ${target.user.tag}:`, err.message);
-        break;
-      }
-    }
-  }
+async function enviarMamut(guild, lock, canal, activadoPor, mapa = null) {
+  const targets = guild.members.cache.filter(m => memberHasAnyRole(m, config.ROLE_OBJETIVO));
 
   // Buscar mensajes viejos de confirmación de mamut y borrarlos
   try {
@@ -64,9 +56,37 @@ async function enviarMamut(guild, lock, canal, activadoPor) {
     console.log('Error borrando avisos de mamut viejos:', err.message);
   }
 
-  // Embed de confirmación al canal
-  const embed = buildMamutConfirmacion(lock, contador, activadoPor);
-  await canal.send({ content: `<@&${config.ROLE_OBJETIVO}>`, embeds: [embed] });
+  // Avisar primero en el canal; se actualiza al terminar los mensajes directos.
+  const embedInicial = buildMamutConfirmacion(lock, 0, activadoPor, mapa);
+  const aviso = await canal.send({ content: buildRoleMentions(config.ROLE_OBJETIVO), embeds: [embedInicial] });
+
+  let contador = 0;
+  for (const [, target] of targets) {
+    for (let i = 0; i < config.DMS_POR_MIEMBRO; i++) {
+      try {
+        const dmPayload = buildDMEmbed(lock, i + 1, mapa);
+        await target.send(dmPayload);
+        contador++;
+
+        // Pausa configurable entre cada DM
+        if (i < config.DMS_POR_MIEMBRO - 1) {
+          await delay(config.DM_DELAY_MS);
+        }
+      } catch (err) {
+        // Si el usuario tiene DMs cerrados, registrar y continuar al siguiente usuario
+        console.log(`Error enviando DM a ${target.user.tag}:`, err.message);
+        break;
+      }
+    }
+  }
+
+  // Actualizar el aviso del canal con el total enviado.
+  const embed = buildMamutConfirmacion(lock, contador, activadoPor, mapa);
+  await aviso.edit({ embeds: [embed] }).catch(() => {});
+
+  if (typeof state.schedulePanelRepost === 'function') {
+    state.schedulePanelRepost(guild);
+  }
 
   return contador;
 }

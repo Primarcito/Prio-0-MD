@@ -21,65 +21,31 @@ function buildPanel() {
   const mamutHoy = state.historialMamut.filter(e => e.fecha && e.fecha.startsWith(hoy)).length;
   const ultimo = state.historialMamut[0];
   const ultimoTexto = ultimo
-    ? `${config.EMOJIS_CIUDAD[ultimo.ciudad] || '📍'} ${ultimo.ciudad}`
+    ? `${config.EMOJIS_CIUDAD[ultimo.ciudad] || '📍'} **${ultimo.ciudad}**${ultimo.mapa ? `\n🗺️ ${ultimo.mapa}` : ''}`
     : '*Ninguno*';
-
-  // Ciudades en dos columnas (3+3)
-  const mitad = Math.ceil(config.CIUDADES.length / 2);
-  const col1 = config.CIUDADES.slice(0, mitad)
-    .map(c => `${config.EMOJIS_CIUDAD[c] || '📍'} ${c}`).join('\n');
-  const col2 = config.CIUDADES.slice(mitad)
-    .map(c => `${config.EMOJIS_CIUDAD[c] || '📍'} ${c}`).join('\n');
 
   const embed = new EmbedBuilder()
     .setColor(0xCC0000)
-    .setThumbnail(config.IMG_MAMUT)
     .setImage(config.IMG_PANEL)
     .setDescription(
       `## 🦣 PANEL MAMUT\n` +
-      `Se ha detectado un **FELPUDITO**.\n` +
-      `Se enviarán **${config.DMS_POR_MIEMBRO} DMs** a cada miembro del rol.`
+      `Sistema de alerta rápida para eventos MAMUT.`
     )
     .addFields(
-      // ── Fila 1: Pasos (3 inline) ──
       {
-        name: '`1` Presioná',
-        value: '🦣 **MAMUT**',
+        name: '📊 Activaciones',
+        value: `Hoy: **${mamutHoy}**`,
         inline: true
       },
       {
-        name: '`2` Seleccioná',
-        value: '🏙️ la ciudad del lock',
-        inline: true
-      },
-      {
-        name: '`3` El bot notifica',
-        value: '📩 a todos por DM',
-        inline: true
-      },
-      // ── Fila 2: Ciudades (2 col) + Estado (1 col) ──
-      {
-        name: '🏙️ CIUDADES DISPONIBLES',
-        value: col1,
+        name: '🦣 Último aviso',
+        value: ultimoTexto,
         inline: true
       },
       {
         name: '\u200b',
-        value: col2,
+        value: '\u200b',
         inline: true
-      },
-      {
-        name: '📊 ESTADO ACTUAL',
-        value:
-          `Activaciones: \`${mamutHoy}\`\n` +
-          `Último: ${ultimoTexto}`,
-        inline: true
-      },
-      // ── Warning ──
-      {
-        name: '\u200b',
-        value: '⚠️ Solo puede usarlo quien tenga el rol autorizado.',
-        inline: false
       }
     )
     .setFooter({ text: `TyrannT • ${horaUTC} UTC` })
@@ -100,7 +66,7 @@ function buildPanel() {
 // 2. DM EMBED — Enviado 3 veces a cada miembro del rol
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function buildDMEmbed(ciudad, numeroDm) {
+function buildDMEmbed(ciudad, numeroDm, mapa = null) {
   const emojiCiudad = config.EMOJIS_CIUDAD[ciudad] || '📍';
 
   const embed = new EmbedBuilder()
@@ -109,21 +75,21 @@ function buildDMEmbed(ciudad, numeroDm) {
     .setDescription(
       `# 🦣 ALERTA MAMUT\n` +
       `Se ha detectado un lock en **${emojiCiudad} ${ciudad}**.\n` +
-      `Acude rápido con tu grupo.`
+      `Ve rápido con tu grupo.`
     )
     .addFields(
       { name: '🏙️ Ciudad',   value: `\`${ciudad}\``,           inline: true },
+      { name: '🗺️ Mapa',      value: mapa ? `\`${mapa}\`` : '`Sin especificar`', inline: true },
       { name: '📢 Guild',     value: '`TyrannT`',               inline: true },
-      { name: '\u200b',        value: '\u200b',                   inline: true },
-      { name: '📩 Aviso',     value: '`DM automático`',         inline: true },
+      { name: '📩 Aviso',     value: '`Mensaje automático`',    inline: true },
       { name: '🔁 Mensaje',   value: `\`${numeroDm}/${config.DMS_POR_MIEMBRO}\``, inline: true },
       { name: '\u200b',        value: '\u200b',                   inline: true },
     )
-    .setFooter({ text: 'Prio0Bot • Alerta rápida MAMUT' })
+    .setFooter({ text: 'Prio0Bot • Alerta MAMUT' })
     .setTimestamp();
 
   return {
-    content: `https://discord.com/channels/969420681349574677/1476467569664852009`,
+    content: config.CANAL_URL,
     embeds: [embed]
   };
 }
@@ -132,7 +98,7 @@ function buildDMEmbed(ciudad, numeroDm) {
 // 3. CONFIRMACIÓN — Embed público en el canal después de activar MAMUT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function buildMamutConfirmacion(lock, contador, activadoPor) {
+function buildMamutConfirmacion(lock, contador, activadoPor, mapa = null) {
   const horaUTC = new Date().toLocaleTimeString('es-AR', {
     timeZone: 'America/Buenos_Aires',
     hour: '2-digit',
@@ -143,22 +109,17 @@ function buildMamutConfirmacion(lock, contador, activadoPor) {
   const embed = new EmbedBuilder()
     .setColor(0xCC0000)
     .setThumbnail(config.IMG_MAMUT)
-    .setImage(config.IMG_PANEL)
     .setDescription(
       `# 🦣 MAMUT ACTIVADO\n` +
       `El aviso MAMUT fue activado correctamente.\n` +
-      `Los miembros del rol serán notificados por DM.`
+      `Los miembros del rol serán notificados por mensaje directo.\n\n` +
+      `👤 **${activadoPor}** • ${emojiCiudad} **${lock}**${mapa ? ` • 🗺️ **${mapa}**` : ''}\n` +
+      `📩 **${config.DMS_POR_MIEMBRO}** mensajes por usuario • ${contador > 0 ? `📊 **${contador}** enviados` : '📊 Enviando...'}`
     )
     .addFields(
-      { name: '👤 Activado por',       value: activadoPor,                       inline: true },
-      { name: '🏙️ Ciudad del lock',   value: `${emojiCiudad} \`${lock}\``,      inline: true },
-      { name: '\u200b',                 value: '\u200b',                           inline: true },
-      { name: '📩 DMs por usuario',    value: `\`${config.DMS_POR_MIEMBRO}\``,   inline: true },
-      { name: '📊 Estado',             value: `\`${contador} enviados\``,         inline: true },
-      { name: '\u200b',                 value: '\u200b',                           inline: true },
       {
         name: '\u200b',
-        value: '> ⚠️ *Solo los usuarios autorizados pueden activar este sistema.*',
+        value: '> ⚠️ *Solo miembros con permiso MAMUT pueden activar este sistema.*',
         inline: false
       }
     )
@@ -175,7 +136,7 @@ function buildMamutConfirmacion(lock, contador, activadoPor) {
 function buildSelectorCiudades() {
   const select = new StringSelectMenuBuilder()
     .setCustomId('selector_ciudad')
-    .setPlaceholder('Seleccioná la ciudad del lock...')
+    .setPlaceholder('Selecciona la ciudad...')
     .addOptions(
       config.CIUDADES.map(c =>
         new StringSelectMenuOptionBuilder()
@@ -188,9 +149,30 @@ function buildSelectorCiudades() {
   const row = new ActionRowBuilder().addComponents(select);
 
   return {
-    content: '🦣 **¿En qué ciudad salió el mamut?**',
+    content: '🦣 **¿En qué ciudad apareció el mamut?**',
     components: [row],
     ephemeral: true
+  };
+}
+
+function buildSelectorMapas(ciudad, mapas) {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`selector_mapa:${ciudad}`)
+    .setPlaceholder('Selecciona el mapa...')
+    .addOptions(
+      mapas.slice(0, 25).map((mapa, index) =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(mapa.slice(0, 100))
+          .setValue(String(index))
+          .setEmoji('🗺️')
+      )
+    );
+
+  const row = new ActionRowBuilder().addComponents(select);
+
+  return {
+    content: `🗺️ **${ciudad}** — selecciona el mapa:`,
+    components: [row]
   };
 }
 
@@ -265,6 +247,7 @@ module.exports = {
   buildPanel,
   buildDMEmbed,
   buildSelectorCiudades,
+  buildSelectorMapas,
   buildSelectorDesactivado,
   buildMamutConfirmacion,
   buildLogsEmbed,

@@ -12,4 +12,6 @@ module.exports = {
   panelChannelId: null,
   panelMessageId: null,
   panelMessage: null,
+  panelRepostTimeout: null,
+  schedulePanelRepost: null,
 };

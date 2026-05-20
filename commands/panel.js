@@ -1,4 +1,5 @@
 const config = require('../config');
+const { canManagePanel } = require('../permissions');
 const state = require('../data/state');
 const { guardarPanel } = require('../data/persistence');
 const { buildPanel } = require('../embeds/mamutEmbeds');
@@ -6,8 +7,8 @@ const { buildPanel } = require('../embeds/mamutEmbeds');
 module.exports = {
   async execute(interaction) {
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    if (!member.roles.cache.has(config.ROLE_ADMIN)) {
-      return interaction.reply({ content: '❌ No tenés permiso para usar este comando.', ephemeral: true });
+    if (!canManagePanel(member)) {
+      return interaction.reply({ content: '❌ No tienes permiso para usar este comando.', ephemeral: true });
     }
 
     await interaction.deferReply({ ephemeral: true });

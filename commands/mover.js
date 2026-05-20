@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, ChannelType } = require('discord.js');
+const { canMoveMembers } = require('../permissions');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,9 +13,8 @@ module.exports = {
     ),
   async execute(interaction) {
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    
-    // Verificar rol de admin proporcionado por el usuario
-    if (!member.roles.cache.has('1336825861466488975')) {
+
+    if (!canMoveMembers(member)) {
       return interaction.reply({ content: '❌ No tienes permiso para usar este comando.', ephemeral: true });
     }
 
