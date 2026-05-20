@@ -8,6 +8,7 @@ const SETTINGS = {
     // Scouts que pueden usar /mamut en cualquier canal y el botón del panel.
     mamut: [
       '1435778823743340651',
+      '1435778823743340652',
       // 'OTRO_ROL_ID',
     ],
 
