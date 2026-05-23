@@ -36,10 +36,39 @@ function buildRoleMentions(roleIds) {
   return getRoleIds(roleIds).map(roleId => `<@&${roleId}>`).join(' ');
 }
 
+async function enviarRondaDm(targets, lock, numeroDm, mapa = null) {
+  const dmPayload = buildDMEmbed(lock, numeroDm, mapa);
+  const resultados = await Promise.allSettled(
+    targets.map(target => target.send(dmPayload))
+  );
+
+  let enviados = 0;
+  const targetsConDmAbierto = [];
+
+  resultados.forEach((resultado, index) => {
+    const target = targets[index];
+
+    if (resultado.status === 'fulfilled') {
+      enviados++;
+      targetsConDmAbierto.push(target);
+      return;
+    }
+
+    console.log(
+      `Error enviando DM ${numeroDm}/${config.DMS_POR_MIEMBRO} a ${target.user.tag}:`,
+      resultado.reason?.message || resultado.reason
+    );
+  });
+
+  return { enviados, targetsConDmAbierto };
+}
+
 // ─── Enviar DMs a todos los miembros del rol ──────────────────────────────────
 
 async function enviarMamut(guild, lock, canal, activadoPor, mapa = null) {
-  const targets = guild.members.cache.filter(m => memberHasAnyRole(m, config.ROLE_OBJETIVO));
+  const targets = [...guild.members.cache
+    .filter(m => memberHasAnyRole(m, config.ROLE_OBJETIVO))
+    .values()];
 
   // Buscar mensajes viejos de confirmación de mamut y borrarlos
   try {
@@ -61,22 +90,15 @@ async function enviarMamut(guild, lock, canal, activadoPor, mapa = null) {
   const aviso = await canal.send({ content: buildRoleMentions(config.ROLE_OBJETIVO), embeds: [embedInicial] });
 
   let contador = 0;
-  for (const [, target] of targets) {
-    for (let i = 0; i < config.DMS_POR_MIEMBRO; i++) {
-      try {
-        const dmPayload = buildDMEmbed(lock, i + 1, mapa);
-        await target.send(dmPayload);
-        contador++;
+  let targetsActivos = targets;
 
-        // Pausa configurable entre cada DM
-        if (i < config.DMS_POR_MIEMBRO - 1) {
-          await delay(config.DM_DELAY_MS);
-        }
-      } catch (err) {
-        // Si el usuario tiene DMs cerrados, registrar y continuar al siguiente usuario
-        console.log(`Error enviando DM a ${target.user.tag}:`, err.message);
-        break;
-      }
+  for (let numeroDm = 1; numeroDm <= config.DMS_POR_MIEMBRO && targetsActivos.length > 0; numeroDm++) {
+    const resultadoRonda = await enviarRondaDm(targetsActivos, lock, numeroDm, mapa);
+    contador += resultadoRonda.enviados;
+    targetsActivos = resultadoRonda.targetsConDmAbierto;
+
+    if (numeroDm < config.DMS_POR_MIEMBRO && config.DM_DELAY_MS > 0 && targetsActivos.length > 0) {
+      await delay(config.DM_DELAY_MS);
     }
   }
 
