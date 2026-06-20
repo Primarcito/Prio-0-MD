@@ -61,8 +61,15 @@ function getCommandsMap() {
 
 async function registerCommands() {
   const rest = new REST({ version: '10' }).setToken(config.TOKEN);
+  const botUser = await rest.get('/users/@me');
+  const applicationId = botUser.id;
+
+  if (config.CLIENT_ID !== applicationId) {
+    console.warn(`CLIENT_ID configurado (${config.CLIENT_ID}) no coincide con el bot (${applicationId}); usando el ID del token.`);
+  }
+
   await rest.put(
-    Routes.applicationGuildCommands(config.CLIENT_ID, config.GUILD_ID),
+    Routes.applicationGuildCommands(applicationId, config.GUILD_ID),
     { body: commandDefs.map(cmd => cmd.toJSON()) }
   );
   console.log('Slash commands registrados.');

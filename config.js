@@ -5,7 +5,7 @@ const { CHANNEL_IDS, CHANNEL_URLS } = require('./channels');
 module.exports = {
   TOKEN: process.env.BOT_TOKEN || process.env.TOKEN,
 
-  CLIENT_ID: process.env.CLIENT_ID || '1506376324158197922',
+  CLIENT_ID: process.env.CLIENT_ID || '1476138650331906163',
   GUILD_ID: SERVER_IDS.main,
 
   // Roles
