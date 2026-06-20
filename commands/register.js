@@ -28,6 +28,10 @@ const commandDefs = [
     .setDescription('🔧 Recrea el panel en el canal (solo admins)'),
 
   new SlashCommandBuilder()
+    .setName('mamut-panel')
+    .setDescription('Recrea el panel de MAMUT en el canal'),
+
+  new SlashCommandBuilder()
     .setName('logs')
     .setDescription('📋 Muestra el historial de mamuts enviados (solo admins)'),
 
@@ -48,6 +52,7 @@ function getCommandsMap() {
   commandsMap.set('mamut', mamut);
   commandsMap.set('mensaje', mensaje);
   commandsMap.set('panel', panel);
+  commandsMap.set('mamut-panel', panel);
   commandsMap.set('logs', logs);
   commandsMap.set('mover', mover);
 
