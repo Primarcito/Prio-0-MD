@@ -2,16 +2,18 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const config = require('./config');
 const state = require('./data/state');
-const { cargarHistorial, cargarPanel, guardarPanel } = require('./data/persistence');
+const { cargarHistorial, cargarPanel, cargarPrioTemporal, guardarPanel } = require('./data/persistence');
 const { registerCommands, getCommandsMap } = require('./commands/register');
 const handleButton = require('./handlers/buttonHandler');
 const handleSelect = require('./handlers/selectHandler');
 const { buildPanel } = require('./embeds/mamutEmbeds');
+const { restaurarPrioTemporal } = require('./utils/prioTemporal');
 
 /* ================= CARGAR DATOS PERSISTIDOS ================= */
 
 cargarHistorial();
 cargarPanel();
+cargarPrioTemporal();
 
 /* ================= CREAR CLIENT ================= */
 
@@ -199,6 +201,7 @@ client.once('clientReady', async () => {
   console.log(`PRIO 0 conectado como ${client.user.tag}`);
 
   const guild = await client.guilds.fetch(config.GUILD_ID);
+  restaurarPrioTemporal(guild);
 
   // Cargar todos los miembros en caché
   await guild.members.fetch();

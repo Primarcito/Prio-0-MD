@@ -5,6 +5,10 @@ module.exports = {
   // Cooldown para evitar doble disparo
   cooldowns: new Set(),
 
+  // Roles Prio temporales entregados por MAMUT
+  prioTemporalTimeouts: new Map(),
+  prioTemporalExpirations: new Map(),
+
   // Historial de mamuts (persistido en historial.json)
   historialMamut: [],
 

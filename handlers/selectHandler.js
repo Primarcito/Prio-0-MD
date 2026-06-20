@@ -2,7 +2,8 @@ const config = require('../config');
 const { canUseMamut } = require('../permissions');
 const state = require('../data/state');
 const { enviarMamut, registrarLog } = require('../utils/mamut');
-const { buildSelectorDesactivado, buildSelectorMapas } = require('../embeds/mamutEmbeds');
+const { darPrioTemporal } = require('../utils/prioTemporal');
+const { buildMamutConfirmacion, buildSelectorDesactivado, buildSelectorMapas } = require('../embeds/mamutEmbeds');
 const { getMapsForCity } = require('../maps');
 
 module.exports = async function handleSelect(interaction) {
@@ -49,11 +50,16 @@ async function procesarMamut(interaction, lock, mapa = null) {
 
   (async () => {
     try {
+      interaction.guild.members.fetch(interaction.user.id)
+        .then(member => darPrioTemporal(member))
+        .catch(err => console.log('Error dando Prio temporal:', err.message));
+
       const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag, mapa);
       registrarLog(interaction.user.tag, lock, contador, mapa);
 
       await interaction.editReply({
         content: `✅ Mamut **${lock}**${mapa ? ` — **${mapa}**` : ''} notificado. Enviados \`${contador}\` mensajes.`,
+        embeds: [buildMamutConfirmacion(lock, contador, interaction.user.tag, mapa)],
         components: []
       });
     } catch (err) {

@@ -26,6 +26,9 @@ const SETTINGS = {
       // 'OTRO_ROL_ID',
     ],
 
+    // Rol Prio temporal para scouts que activan MAMUT.
+    prioTemporal: '1506387790265581588',
+
     // Puede recrear el panel y ver logs.
     admin: [
       '1505949443529375845',

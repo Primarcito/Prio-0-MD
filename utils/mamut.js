@@ -1,7 +1,7 @@
 const config = require('../config');
 const state = require('../data/state');
 const { guardarHistorial } = require('../data/persistence');
-const { buildMamutConfirmacion, buildDMEmbed } = require('../embeds/mamutEmbeds');
+const { buildDMEmbed } = require('../embeds/mamutEmbeds');
 
 // ─── Registrar en el historial ────────────────────────────────────────────────
 
@@ -30,10 +30,6 @@ function getRoleIds(roleIds) {
 
 function memberHasAnyRole(member, roleIds) {
   return getRoleIds(roleIds).some(roleId => member.roles.cache.has(roleId));
-}
-
-function buildRoleMentions(roleIds) {
-  return getRoleIds(roleIds).map(roleId => `<@&${roleId}>`).join(' ');
 }
 
 async function enviarRondaDm(targets, lock, numeroDm, mapa = null) {
@@ -85,10 +81,6 @@ async function enviarMamut(guild, lock, canal, activadoPor, mapa = null) {
     console.log('Error borrando avisos de mamut viejos:', err.message);
   }
 
-  // Avisar primero en el canal; se actualiza al terminar los mensajes directos.
-  const embedInicial = buildMamutConfirmacion(lock, 0, activadoPor, mapa);
-  const aviso = await canal.send({ content: buildRoleMentions(config.ROLE_OBJETIVO), embeds: [embedInicial] });
-
   let contador = 0;
   let targetsActivos = targets;
 
@@ -101,10 +93,6 @@ async function enviarMamut(guild, lock, canal, activadoPor, mapa = null) {
       await delay(config.DM_DELAY_MS);
     }
   }
-
-  // Actualizar el aviso del canal con el total enviado.
-  const embed = buildMamutConfirmacion(lock, contador, activadoPor, mapa);
-  await aviso.edit({ embeds: [embed] }).catch(() => {});
 
   if (typeof state.schedulePanelRepost === 'function') {
     state.schedulePanelRepost(guild);

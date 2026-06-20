@@ -54,9 +54,33 @@ function cargarPanel() {
   }
 }
 
+// Prio temporal entregado por MAMUT
+
+function guardarPrioTemporal() {
+  fs.writeFileSync(
+    path.join(ROOT, config.PRIO_TEMPORAL_FILE),
+    JSON.stringify([...state.prioTemporalExpirations.entries()], null, 2)
+  );
+}
+
+function cargarPrioTemporal() {
+  const filePath = path.join(ROOT, config.PRIO_TEMPORAL_FILE);
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      state.prioTemporalExpirations = new Map(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error cargando Prio temporal:', err.message);
+      state.prioTemporalExpirations = new Map();
+    }
+  }
+}
+
 module.exports = {
   guardarHistorial,
   cargarHistorial,
   guardarPanel,
   cargarPanel,
+  guardarPrioTemporal,
+  cargarPrioTemporal,
 };
