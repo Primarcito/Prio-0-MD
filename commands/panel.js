@@ -31,7 +31,7 @@ module.exports = {
     state.panelChannelId = canal.id;
     state.panelMessageId = msg.id;
     state.panelMessage = msg;
-    guardarPanel();
+    await guardarPanel();
 
     return interaction.editReply('✅ Panel recreado.');
   }

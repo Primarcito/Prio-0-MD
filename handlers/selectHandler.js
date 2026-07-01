@@ -55,7 +55,7 @@ async function procesarMamut(interaction, lock, mapa = null) {
         .catch(err => console.log('Error dando Prio temporal:', err.message));
 
       const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag, mapa);
-      registrarLog(interaction.user.tag, lock, contador, mapa);
+      await registrarLog(interaction.user.tag, lock, contador, mapa);
 
       await interaction.editReply({
         content: `✅ Mamut **${lock}**${mapa ? ` — **${mapa}**` : ''} notificado. Enviados \`${contador}\` mensajes.`,

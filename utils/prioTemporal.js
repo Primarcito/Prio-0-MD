@@ -2,12 +2,12 @@ const config = require('../config');
 const state = require('../data/state');
 const { guardarPrioTemporal } = require('../data/persistence');
 
-function clearExistingTimeout(userId) {
+async function clearExistingTimeout(userId) {
   const timeout = state.prioTemporalTimeouts.get(userId);
   if (timeout) clearTimeout(timeout);
   state.prioTemporalTimeouts.delete(userId);
   state.prioTemporalExpirations.delete(userId);
-  guardarPrioTemporal();
+  await guardarPrioTemporal();
 }
 
 function scheduleRemoval(guild, userId, roleId, expiresAt) {
@@ -28,7 +28,7 @@ async function quitarPrioTemporal(guild, userId, roleId) {
   } catch (err) {
     console.log(`Error quitando Prio temporal a ${userId}:`, err.message);
   } finally {
-    clearExistingTimeout(userId);
+    await clearExistingTimeout(userId);
   }
 }
 
@@ -47,19 +47,19 @@ async function darPrioTemporal(member) {
     await member.roles.add(roleId, 'Acceso Prio temporal por MAMUT');
   }
 
-  clearExistingTimeout(member.id);
+  await clearExistingTimeout(member.id);
   const expiresAt = Date.now() + config.PRIO_TEMPORAL_MS;
 
   state.prioTemporalExpirations.set(member.id, { roleId, expiresAt });
-  guardarPrioTemporal();
+  await guardarPrioTemporal();
   scheduleRemoval(member.guild, member.id, roleId, expiresAt);
   return { granted: true, durationMs: config.PRIO_TEMPORAL_MS };
 }
 
-function restaurarPrioTemporal(guild) {
+async function restaurarPrioTemporal(guild) {
   for (const [userId, data] of state.prioTemporalExpirations.entries()) {
     if (!data?.roleId || !data?.expiresAt) {
-      clearExistingTimeout(userId);
+      await clearExistingTimeout(userId);
       continue;
     }
 

@@ -5,7 +5,7 @@ const { buildDMEmbed } = require('../embeds/mamutEmbeds');
 
 // ─── Registrar en el historial ────────────────────────────────────────────────
 
-function registrarLog(usuario, ciudad, mensajes, mapa = null) {
+async function registrarLog(usuario, ciudad, mensajes, mapa = null) {
   const fecha = new Date().toLocaleString('es-AR', { timeZone: 'America/Buenos_Aires' });
   state.historialMamut.unshift({ usuario, ciudad, mapa, fecha, mensajes });
 
@@ -14,7 +14,7 @@ function registrarLog(usuario, ciudad, mensajes, mapa = null) {
     state.historialMamut = state.historialMamut.slice(0, config.MAX_HISTORIAL);
   }
 
-  guardarHistorial();
+  await guardarHistorial();
   console.log(`[MAMUT] ${fecha} | ${usuario} | ${ciudad} | ${mensajes} msgs`);
 }
 

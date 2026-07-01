@@ -2,18 +2,18 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const config = require('./config');
 const state = require('./data/state');
-const { cargarHistorial, cargarPanel, cargarPrioTemporal, guardarPanel } = require('./data/persistence');
+const {
+  inicializarPersistencia,
+  cargarHistorial,
+  cargarPanel,
+  cargarPrioTemporal,
+  guardarPanel,
+} = require('./data/persistence');
 const { registerCommands, getCommandsMap } = require('./commands/register');
 const handleButton = require('./handlers/buttonHandler');
 const handleSelect = require('./handlers/selectHandler');
 const { buildPanel } = require('./embeds/mamutEmbeds');
 const { restaurarPrioTemporal } = require('./utils/prioTemporal');
-
-/* ================= CARGAR DATOS PERSISTIDOS ================= */
-
-cargarHistorial();
-cargarPanel();
-cargarPrioTemporal();
 
 /* ================= CREAR CLIENT ================= */
 
@@ -30,10 +30,6 @@ state.client = client;
 /* ================= REGISTRAR SLASH COMMANDS ================= */
 
 const commands = getCommandsMap();
-
-(async () => {
-  await registerCommands();
-})();
 
 /* ================= ROUTER DE INTERACCIONES ================= */
 
@@ -160,7 +156,7 @@ async function sincronizarPanel(guild) {
   state.panelChannelId = canal.id;
   state.panelMessageId = msg.id;
   state.panelMessage = msg;
-  guardarPanel();
+  await guardarPanel();
 
   console.log('Panel creado.');
 }
@@ -173,7 +169,7 @@ async function recrearPanel(guild) {
   state.panelChannelId = null;
   state.panelMessageId = null;
   state.panelMessage = null;
-  guardarPanel();
+  await guardarPanel();
 
   await sincronizarPanel(guild);
 }
@@ -201,7 +197,7 @@ client.once('clientReady', async () => {
   console.log(`PRIO 0 conectado como ${client.user.tag}`);
 
   const guild = await client.guilds.fetch(config.GUILD_ID);
-  restaurarPrioTemporal(guild);
+  await restaurarPrioTemporal(guild);
 
   // Cargar todos los miembros en caché
   await guild.members.fetch();
@@ -218,7 +214,7 @@ client.once('clientReady', async () => {
       state.panelChannelId = null;
       state.panelMessageId = null;
       state.panelMessage = null;
-      guardarPanel();
+      await guardarPanel();
     }
   }
 
@@ -231,6 +227,20 @@ client.once('clientReady', async () => {
   }, config.AUTO_PANEL_INTERVAL_MS);
 });
 
-/* ================= LOGIN ================= */
+/* ================= ARRANQUE ================= */
 
-client.login(config.TOKEN);
+async function main() {
+  try {
+    await inicializarPersistencia();
+    await cargarHistorial();
+    await cargarPanel();
+    await cargarPrioTemporal();
+    await registerCommands();
+    await client.login(config.TOKEN);
+  } catch (err) {
+    console.error('Error iniciando PRIO 0:', err);
+    process.exit(1);
+  }
+}
+
+main();

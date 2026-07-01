@@ -2,3 +2,4 @@ node_modules
 .env
 historial.json
 panel.json
+prio-temporal.json

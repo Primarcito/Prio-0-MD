@@ -20,7 +20,7 @@ module.exports = {
         darPrioTemporal(member).catch(err => console.log('Error dando Prio temporal:', err.message));
 
         const contador = await enviarMamut(interaction.guild, lock, interaction.channel, interaction.user.tag);
-        registrarLog(interaction.user.tag, lock, contador);
+        await registrarLog(interaction.user.tag, lock, contador);
         await interaction.editReply({
           content: '',
           embeds: [buildMamutConfirmacion(lock, contador, interaction.user.tag)],
