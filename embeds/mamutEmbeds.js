@@ -193,7 +193,13 @@ function buildSelectorDesactivado(lock) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const MAX_LOGS_MOSTRADOS = 20;
-const MAX_DESCRIPCION_LOGS = 3900;
+const MAX_CAMPOS_LOGS = 22;
+const MAX_VALOR_CAMPO = 1000;
+const MAX_CARACTERES_CAMPOS_LOGS = 4800;
+const MESES_UTC = [
+  'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+  'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC',
+];
 
 function escaparMarkdown(valor, fallback = 'Desconocido') {
   const texto = String(valor ?? '').trim();
@@ -229,68 +235,142 @@ function obtenerFechaUtc(entrada) {
 
 function obtenerPartesUtc(entrada) {
   const fecha = obtenerFechaUtc(entrada);
-  if (!fecha) return { dia: 'Fecha desconocida', hora: 'Hora desconocida' };
+  if (!fecha) {
+    return {
+      diaKey: 'desconocida',
+      dia: 'FECHA DESCONOCIDA',
+      hora: '--:-- UTC',
+    };
+  }
 
   const iso = fecha.toISOString();
   const [anio, mes, dia] = iso.slice(0, 10).split('-');
   return {
-    dia: `${dia}/${mes}/${anio}`,
-    hora: `${iso.slice(11, 19)} UTC`,
+    diaKey: iso.slice(0, 10),
+    dia: `${dia} ${MESES_UTC[Number(mes) - 1]} ${anio}`,
+    hora: `${iso.slice(11, 16)} UTC`,
+  };
+}
+
+function crearBloqueLog(entrada, hora) {
+  const emoji = config.EMOJIS_CIUDAD[entrada.ciudad] || '📍';
+  const ciudad = escaparMarkdown(entrada.ciudad);
+  const usuario = escaparMarkdown(entrada.usuario);
+  const mapa = escaparMarkdown(entrada.mapa, 'Sin mapa registrado');
+  const mensajes = Number(entrada.mensajes) || 0;
+
+  return (
+    `> ${emoji} **${ciudad}** · 🕒 \`${hora}\`\n` +
+    `> ├─ 🗺️ ${mapa}\n` +
+    `> └─ 👤 ${usuario} · 📨 **${mensajes} envíos**`
+  );
+}
+
+function crearCamposLogs() {
+  const campos = [];
+  let mostrados = 0;
+  let caracteresUsados = 0;
+
+  for (const entrada of state.historialMamut.slice(0, MAX_LOGS_MOSTRADOS)) {
+    const { diaKey, dia, hora } = obtenerPartesUtc(entrada);
+    const bloque = crearBloqueLog(entrada, hora);
+    const campoActual = campos[campos.length - 1];
+    const puedeAgruparse =
+      campoActual?.diaKey === diaKey &&
+      campoActual.value.length + bloque.length + 2 <= MAX_VALOR_CAMPO &&
+      caracteresUsados + bloque.length + 2 <= MAX_CARACTERES_CAMPOS_LOGS;
+
+    if (puedeAgruparse) {
+      campoActual.value += `\n\n${bloque}`;
+      caracteresUsados += bloque.length + 2;
+      mostrados++;
+      continue;
+    }
+
+    if (campos.length >= MAX_CAMPOS_LOGS) break;
+
+    const continuacion = campos.some(campo => campo.diaKey === diaKey);
+    const nombreCampo = `📅 ${dia} · UTC${continuacion ? ' · CONT.' : ''}`;
+    if (
+      caracteresUsados + nombreCampo.length + bloque.length >
+      MAX_CARACTERES_CAMPOS_LOGS
+    ) break;
+
+    campos.push({
+      diaKey,
+      name: nombreCampo,
+      value: bloque,
+      inline: false,
+    });
+    caracteresUsados += nombreCampo.length + bloque.length;
+    mostrados++;
+  }
+
+  return {
+    mostrados,
+    campos: campos.map(({ diaKey, ...campo }) => campo),
   };
 }
 
 function buildLogsEmbed() {
   if (state.historialMamut.length === 0) {
     return new EmbedBuilder()
-      .setTitle('📋 Historial de Mamuts')
+      .setAuthor({ name: 'PRIO 0 • CONTROL MAMUT', iconURL: config.IMG_MAMUT })
+      .setTitle('🦣 Registro de activaciones')
       .setColor(0x2b2d31)
-      .setDescription('Todavía no hay activaciones registradas.\nLos horarios se mostrarán en **UTC**.')
-      .setFooter({ text: 'Prio0Bot • Historial MAMUT' })
+      .setDescription(
+        'No hay actividad registrada en este momento.\n\n' +
+        '> 📭 **Estado del historial:** sin registros\n' +
+        '> 🕒 Horario estándar: **UTC · 24 h**'
+      )
+      .setThumbnail(config.IMG_MAMUT)
+      .setFooter({ text: 'PRIO 0 • Centro de operaciones MAMUT' })
       .setTimestamp();
   }
 
-  let descripcion = '';
-  let mostrados = 0;
-  let ultimoDia = null;
-
-  for (const entrada of state.historialMamut.slice(0, MAX_LOGS_MOSTRADOS)) {
-    const { dia, hora } = obtenerPartesUtc(entrada);
-    const encabezadoDia = dia !== ultimoDia ? `**📅 ${dia} · UTC**\n` : '';
-    const emoji = config.EMOJIS_CIUDAD[entrada.ciudad] || '📍';
-    const ciudad = escaparMarkdown(entrada.ciudad);
-    const usuario = escaparMarkdown(entrada.usuario);
-    const mapa = escaparMarkdown(entrada.mapa, 'Sin especificar');
-    const mensajes = Number(entrada.mensajes) || 0;
-    const bloque =
-      `${encabezadoDia}` +
-      `> ${emoji} **${ciudad}** · 🗺️ ${mapa}\n` +
-      `> 👤 ${usuario} · 📨 **${mensajes} mensajes** · 🕒 \`${hora}\`\n\n`;
-
-    if (descripcion.length + bloque.length > MAX_DESCRIPCION_LOGS) break;
-    descripcion += bloque;
-    ultimoDia = dia;
-    mostrados++;
-  }
-
+  const { campos, mostrados } = crearCamposLogs();
   const totalMsgs = state.historialMamut.reduce((acc, e) => acc + (Number(e.mensajes) || 0), 0);
   const mapasRegistrados = new Set(
     state.historialMamut
       .map(e => String(e.mapa || '').trim())
       .filter(Boolean)
   ).size;
+  const ultimaEntrada = state.historialMamut[0];
+  const ultimaHora = obtenerPartesUtc(ultimaEntrada).hora;
+  const ultimoEmoji = config.EMOJIS_CIUDAD[ultimaEntrada.ciudad] || '📍';
+  const ultimaCiudad = escaparMarkdown(ultimaEntrada.ciudad);
+  const formatearNumero = numero => new Intl.NumberFormat('es-ES').format(numero);
 
   const embed = new EmbedBuilder()
-    .setTitle('📋 Historial MAMUT')
+    .setAuthor({ name: 'PRIO 0 • CONTROL MAMUT', iconURL: config.IMG_MAMUT })
+    .setTitle('🦣 Registro de activaciones')
     .setColor(0xCC0000)
-    .setDescription(`Últimas activaciones registradas\n\n${descripcion.trimEnd()}`)
+    .setDescription(
+      'Seguimiento operativo de alertas y entregas del sistema.\n\n' +
+      `> 📌 **Última señal:** ${ultimoEmoji} **${ultimaCiudad}** · \`${ultimaHora}\`\n` +
+      '> 🕒 **Horario estándar:** UTC · formato 24 h'
+    )
     .addFields(
-      { name: '📊 Total activaciones', value: `\`${state.historialMamut.length}\``, inline: true },
-      { name: '📨 Mensajes enviados', value: `\`${totalMsgs}\``, inline: true },
-      { name: '🗺️ Mapas distintos', value: `\`${mapasRegistrados}\``, inline: true },
+      {
+        name: '📊 ACTIVACIONES',
+        value: `**${formatearNumero(state.historialMamut.length)}**\nregistros`,
+        inline: true,
+      },
+      {
+        name: '📨 MENSAJES',
+        value: `**${formatearNumero(totalMsgs)}**\nenviados`,
+        inline: true,
+      },
+      {
+        name: '🗺️ MAPAS',
+        value: `**${formatearNumero(mapasRegistrados)}**\nidentificados`,
+        inline: true,
+      },
+      ...campos,
     )
     .setThumbnail(config.IMG_MAMUT)
     .setFooter({
-      text: `Mostrando ${mostrados} de ${state.historialMamut.length} • Todos los horarios en UTC`
+      text: `PRIO 0 • Mostrando ${mostrados} de ${state.historialMamut.length} • Datos en UTC`
     })
     .setTimestamp();
 
