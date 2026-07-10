@@ -290,7 +290,7 @@ function crearCamposLogs() {
     if (campos.length >= MAX_CAMPOS_LOGS) break;
 
     const continuacion = campos.some(campo => campo.diaKey === diaKey);
-    const nombreCampo = `📅 ${dia} · UTC${continuacion ? ' · CONT.' : ''}`;
+    const nombreCampo = `📅 ${dia}${continuacion ? ' · CONT.' : ''}`;
     if (
       caracteresUsados + nombreCampo.length + bloque.length >
       MAX_CARACTERES_CAMPOS_LOGS
