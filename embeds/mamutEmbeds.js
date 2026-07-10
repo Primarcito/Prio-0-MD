@@ -192,52 +192,106 @@ function buildSelectorDesactivado(lock) {
 // EMBED DE LOGS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const MAX_LOGS_MOSTRADOS = 20;
+const MAX_DESCRIPCION_LOGS = 3900;
+
+function escaparMarkdown(valor, fallback = 'Desconocido') {
+  const texto = String(valor ?? '').trim();
+  if (!texto) return fallback;
+  return texto.replace(/([\\`*_{}\[\]()#+\-.!|>~])/g, '\\$1');
+}
+
+function obtenerFechaUtc(entrada) {
+  if (entrada.timestamp) {
+    const fechaIso = new Date(entrada.timestamp);
+    if (!Number.isNaN(fechaIso.getTime())) return fechaIso;
+  }
+
+  // Compatibilidad con registros anteriores: fecha se guardaba en hora de
+  // Buenos Aires (UTC-3) con el formato "d/m/yyyy, HH:mm:ss".
+  const match = String(entrada.fecha || '').match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/
+  );
+  if (match) {
+    const [, dia, mes, anio, hora, minuto, segundo = '0'] = match;
+    return new Date(Date.UTC(
+      Number(anio),
+      Number(mes) - 1,
+      Number(dia),
+      Number(hora) + 3,
+      Number(minuto),
+      Number(segundo)
+    ));
+  }
+
+  return null;
+}
+
+function obtenerPartesUtc(entrada) {
+  const fecha = obtenerFechaUtc(entrada);
+  if (!fecha) return { dia: 'Fecha desconocida', hora: 'Hora desconocida' };
+
+  const iso = fecha.toISOString();
+  const [anio, mes, dia] = iso.slice(0, 10).split('-');
+  return {
+    dia: `${dia}/${mes}/${anio}`,
+    hora: `${iso.slice(11, 19)} UTC`,
+  };
+}
+
 function buildLogsEmbed() {
   if (state.historialMamut.length === 0) {
     return new EmbedBuilder()
       .setTitle('📋 Historial de Mamuts')
       .setColor(0x2b2d31)
-      .setDescription('*No hay registros todavía.*')
+      .setDescription('Todavía no hay activaciones registradas.\nLos horarios se mostrarán en **UTC**.')
+      .setFooter({ text: 'Prio0Bot • Historial MAMUT' })
       .setTimestamp();
   }
 
-  // Agrupar por fecha
-  const porFecha = {};
-  for (const e of state.historialMamut) {
-    const dia = e.fecha ? e.fecha.split(',')[0].trim() : 'Desconocido';
-    if (!porFecha[dia]) porFecha[dia] = [];
-    porFecha[dia].push(e);
-  }
-
   let descripcion = '';
-  let contador = 0;
+  let mostrados = 0;
+  let ultimoDia = null;
 
-  for (const [fecha, entradas] of Object.entries(porFecha)) {
-    if (contador >= 20) break;
-    descripcion += `**📅 ${fecha}**\n`;
-    for (const e of entradas) {
-      if (contador >= 20) break;
-      const emoji = config.EMOJIS_CIUDAD[e.ciudad] || '📍';
-      const hora = e.fecha ? e.fecha.split(',')[1]?.trim() || '' : '';
-      descripcion += `> ${emoji} **${e.ciudad}** — ${e.usuario} • \`${e.mensajes} msgs\` • ${hora}\n`;
-      contador++;
-    }
-    descripcion += '\n';
+  for (const entrada of state.historialMamut.slice(0, MAX_LOGS_MOSTRADOS)) {
+    const { dia, hora } = obtenerPartesUtc(entrada);
+    const encabezadoDia = dia !== ultimoDia ? `**📅 ${dia} · UTC**\n` : '';
+    const emoji = config.EMOJIS_CIUDAD[entrada.ciudad] || '📍';
+    const ciudad = escaparMarkdown(entrada.ciudad);
+    const usuario = escaparMarkdown(entrada.usuario);
+    const mapa = escaparMarkdown(entrada.mapa, 'Sin especificar');
+    const mensajes = Number(entrada.mensajes) || 0;
+    const bloque =
+      `${encabezadoDia}` +
+      `> ${emoji} **${ciudad}** · 🗺️ ${mapa}\n` +
+      `> 👤 ${usuario} · 📨 **${mensajes} mensajes** · 🕒 \`${hora}\`\n\n`;
+
+    if (descripcion.length + bloque.length > MAX_DESCRIPCION_LOGS) break;
+    descripcion += bloque;
+    ultimoDia = dia;
+    mostrados++;
   }
 
-  const totalMsgs = state.historialMamut.reduce((acc, e) => acc + (e.mensajes || 0), 0);
-  const ciudadesUsadas = [...new Set(state.historialMamut.map(e => e.ciudad))];
+  const totalMsgs = state.historialMamut.reduce((acc, e) => acc + (Number(e.mensajes) || 0), 0);
+  const mapasRegistrados = new Set(
+    state.historialMamut
+      .map(e => String(e.mapa || '').trim())
+      .filter(Boolean)
+  ).size;
 
   const embed = new EmbedBuilder()
-    .setTitle('📋 Historial de Mamuts')
+    .setTitle('📋 Historial MAMUT')
     .setColor(0xCC0000)
-    .setDescription(descripcion)
+    .setDescription(`Últimas activaciones registradas\n\n${descripcion.trimEnd()}`)
     .addFields(
       { name: '📊 Total activaciones', value: `\`${state.historialMamut.length}\``, inline: true },
-      { name: '📨 Total mensajes',     value: `\`${totalMsgs}\``,                   inline: true },
-      { name: '🏙️ Ciudades',          value: ciudadesUsadas.map(c => config.EMOJIS_CIUDAD[c] || '📍').join(' ') || 'N/A', inline: true },
+      { name: '📨 Mensajes enviados', value: `\`${totalMsgs}\``, inline: true },
+      { name: '🗺️ Mapas distintos', value: `\`${mapasRegistrados}\``, inline: true },
     )
-    .setFooter({ text: `Últimos ${state.historialMamut.length} registros` })
+    .setThumbnail(config.IMG_MAMUT)
+    .setFooter({
+      text: `Mostrando ${mostrados} de ${state.historialMamut.length} • Todos los horarios en UTC`
+    })
     .setTimestamp();
 
   return embed;

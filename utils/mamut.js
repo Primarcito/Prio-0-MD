@@ -6,8 +6,10 @@ const { buildDMEmbed } = require('../embeds/mamutEmbeds');
 // ─── Registrar en el historial ────────────────────────────────────────────────
 
 async function registrarLog(usuario, ciudad, mensajes, mapa = null) {
-  const fecha = new Date().toLocaleString('es-AR', { timeZone: 'America/Buenos_Aires' });
-  state.historialMamut.unshift({ usuario, ciudad, mapa, fecha, mensajes });
+  const ahora = new Date();
+  const timestamp = ahora.toISOString();
+  const fecha = ahora.toLocaleString('es-AR', { timeZone: 'America/Buenos_Aires' });
+  state.historialMamut.unshift({ usuario, ciudad, mapa, timestamp, fecha, mensajes });
 
   // Limitar tamaño
   if (state.historialMamut.length > config.MAX_HISTORIAL) {
@@ -15,7 +17,7 @@ async function registrarLog(usuario, ciudad, mensajes, mapa = null) {
   }
 
   await guardarHistorial();
-  console.log(`[MAMUT] ${fecha} | ${usuario} | ${ciudad} | ${mensajes} msgs`);
+  console.log(`[MAMUT] ${timestamp} | ${usuario} | ${ciudad} | ${mapa || 'Sin mapa'} | ${mensajes} msgs`);
 }
 
 // ─── Pausa configurable entre DMs ─────────────────────────────────────────────
