@@ -11,7 +11,14 @@ const KEYS = {
   historial: 'historial_mamut',
   panel: 'panel',
   prioTemporal: 'prio_temporal',
+  historialRecovery: 'historial_recovery_2026_07_10',
 };
+const HISTORIAL_RECOVERY_FILE = path.join(
+  APP_ROOT,
+  'data',
+  'historial-recovery-2026-07-10.json'
+);
+const HISTORIAL_RECOVERY_MARKER_FILE = '.historial-recovery-2026-07-10.json';
 
 let pool = null;
 let databaseEnabled = false;
@@ -123,9 +130,69 @@ async function guardarHistorial() {
   await saveState(KEYS.historial, state.historialMamut, config.HISTORIAL_FILE);
 }
 
+function getHistorialEntryKey(entry) {
+  return [
+    entry.timestamp || entry.fecha || '',
+    entry.usuario || '',
+    entry.ciudad || '',
+    entry.mensajes || 0,
+  ].join('|');
+}
+
+function readHistorialRecovery() {
+  if (!fs.existsSync(HISTORIAL_RECOVERY_FILE)) return [];
+
+  try {
+    const data = JSON.parse(fs.readFileSync(HISTORIAL_RECOVERY_FILE, 'utf8'));
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('[DB] Error leyendo la recuperación del historial:', err.message);
+    return [];
+  }
+}
+
+async function historialRecoveryApplied() {
+  if (!databaseEnabled) {
+    return fs.existsSync(getFilePath(HISTORIAL_RECOVERY_MARKER_FILE));
+  }
+
+  const result = await pool.query(
+    `SELECT 1 FROM ${TABLE_NAME} WHERE key = $1`,
+    [KEYS.historialRecovery]
+  );
+  return result.rowCount > 0;
+}
+
+async function applyHistorialRecovery(data) {
+  if (await historialRecoveryApplied()) return data;
+
+  const recoveryEntries = readHistorialRecovery();
+  if (recoveryEntries.length === 0) return data;
+
+  const existingKeys = new Set(data.map(getHistorialEntryKey));
+  const missingEntries = recoveryEntries.filter(
+    entry => !existingKeys.has(getHistorialEntryKey(entry))
+  );
+  const restoredData = [...data, ...missingEntries].slice(0, config.MAX_HISTORIAL);
+
+  await saveState(KEYS.historial, restoredData, config.HISTORIAL_FILE);
+  await saveState(
+    KEYS.historialRecovery,
+    {
+      appliedAt: new Date().toISOString(),
+      restoredEntries: missingEntries.length,
+    },
+    HISTORIAL_RECOVERY_MARKER_FILE
+  );
+
+  console.log(`[DB] Recuperados ${missingEntries.length} registros del historial MAMUT.`);
+  return restoredData;
+}
+
 async function cargarHistorial() {
   const data = await loadState(KEYS.historial, config.HISTORIAL_FILE, []);
-  state.historialMamut = Array.isArray(data) ? data : [];
+  const historial = Array.isArray(data) ? data : [];
+  state.historialMamut = await applyHistorialRecovery(historial);
 }
 
 async function guardarPanel() {
