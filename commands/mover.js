@@ -31,15 +31,23 @@ module.exports = {
 
     await interaction.deferReply({ ephemeral: true });
 
+    const miembros = [...canalOrigen.members.values()];
+    const resultados = await Promise.allSettled(
+      miembros.map(voiceMember => voiceMember.voice.setChannel(canalDestino))
+    );
+
     let count = 0;
-    for (const [memberId, voiceMember] of canalOrigen.members) {
-      try {
-        await voiceMember.voice.setChannel(canalDestino);
+    resultados.forEach((resultado, index) => {
+      if (resultado.status === 'fulfilled') {
         count++;
-      } catch (err) {
-        console.error(`Error moviendo a ${voiceMember.user.tag}:`, err.message);
+        return;
       }
-    }
+
+      console.error(
+        `Error moviendo a ${miembros[index].user.tag}:`,
+        resultado.reason?.message || resultado.reason
+      );
+    });
 
     return interaction.editReply(`✅ Se han movido \`${count}\` usuarios de **${canalOrigen.name}** a **${canalDestino.name}**.`);
   }

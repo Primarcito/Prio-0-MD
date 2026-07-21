@@ -28,6 +28,10 @@ function canSendMessage(member) {
   return hasRole(member, ROLE_IDS.mensaje);
 }
 
+function canManageRoles(member) {
+  return hasRole(member, ROLE_IDS.rolAdmin);
+}
+
 module.exports = {
   SERVER_IDS,
   ROLE_IDS,
@@ -37,4 +41,5 @@ module.exports = {
   canViewLogs,
   canMoveMembers,
   canSendMessage,
+  canManageRoles,
 };

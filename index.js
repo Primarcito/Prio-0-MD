@@ -34,27 +34,52 @@ const commands = getCommandsMap();
 /* ================= ROUTER DE INTERACCIONES ================= */
 
 client.on('interactionCreate', async interaction => {
-  // Filtrar guild y canal
-  if (interaction.guildId !== config.GUILD_ID) return;
-  if (
-    interaction.isChatInputCommand() &&
-    ['mover', 'mamut'].includes(interaction.commandName)
-  ) {
-    const cmd = commands.get(interaction.commandName);
-    if (cmd) return cmd.execute(interaction);
-  }
-
-  if (interaction.channelId !== config.CANAL_PERMITIDO) {
-    if (interaction.isRepliable()) {
-      return interaction.reply({
-        content: '❌ Este comando solo se puede usar en el canal permitido.',
-        ephemeral: true
-      });
-    }
-    return;
-  }
-
   try {
+    const isMainGuild = interaction.guildId === config.GUILD_ID;
+    const isRolGuild = interaction.guildId === config.GUILD_ID_ROL;
+
+    // Servidor exclusivo de /rol — solo responde autocomplete y /rol
+    if (isRolGuild) {
+      if (interaction.isAutocomplete()) {
+        const cmd = commands.get(interaction.commandName);
+        if (cmd && cmd.autocomplete) return cmd.autocomplete(interaction);
+      }
+      if (interaction.isChatInputCommand() && interaction.commandName === 'rol') {
+        const cmd = commands.get('rol');
+        if (cmd) return cmd.execute(interaction);
+      }
+      return;
+    }
+
+    // A partir de acá solo el servidor principal
+    if (!isMainGuild) return;
+
+    // mover y mamut bypassan el filtro de canal
+    if (
+      interaction.isChatInputCommand() &&
+      ['mover', 'mamut'].includes(interaction.commandName)
+    ) {
+      const cmd = commands.get(interaction.commandName);
+      if (cmd) return cmd.execute(interaction);
+    }
+
+    if (interaction.channelId !== config.CANAL_PERMITIDO) {
+      if (interaction.isAutocomplete()) return;
+      if (interaction.isRepliable()) {
+        return interaction.reply({
+          content: '❌ Este comando solo se puede usar en el canal permitido.',
+          ephemeral: true
+        });
+      }
+      return;
+    }
+
+    // Autocomplete
+    if (interaction.isAutocomplete()) {
+      const cmd = commands.get(interaction.commandName);
+      if (cmd && cmd.autocomplete) return cmd.autocomplete(interaction);
+    }
+
     // Slash commands
     if (interaction.isChatInputCommand()) {
       const cmd = commands.get(interaction.commandName);

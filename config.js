@@ -7,6 +7,7 @@ module.exports = {
 
   CLIENT_ID: process.env.CLIENT_ID || '1476138650331906163',
   GUILD_ID: SERVER_IDS.main,
+  GUILD_ID_ROL: SERVER_IDS.rolAdmin,
 
   // Roles
   ROLE_MAMUT: ROLE_IDS.mamut,

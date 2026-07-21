@@ -36,6 +36,30 @@ const commandDefs = [
     .setDescription('📋 Muestra el historial de mamuts enviados (solo admins)'),
 
   require('./mover').data,
+
+  new SlashCommandBuilder()
+    .setName('rol')
+    .setDescription('Gestiona roles en el servidor')
+    .addStringOption(option =>
+      option.setName('accion')
+        .setDescription('Agregar o quitar el rol')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Agregar', value: 'agregar' },
+          { name: 'Quitar', value: 'quitar' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('rol')
+        .setDescription('Rol a gestionar')
+        .setRequired(true)
+        .setAutocomplete(true)
+    )
+    .addStringOption(option =>
+      option.setName('usuarios')
+        .setDescription('IDs o menciones separados por espacio — solo para agregar')
+        .setRequired(false)
+    ),
 ];
 
 // Map para el router de interacciones
@@ -48,6 +72,7 @@ function getCommandsMap() {
   const panel = require('./panel');
   const logs = require('./logs');
   const mover = require('./mover');
+  const rol = require('./rol');
 
   commandsMap.set('mamut', mamut);
   commandsMap.set('mensaje', mensaje);
@@ -55,6 +80,7 @@ function getCommandsMap() {
   commandsMap.set('mamut-panel', panel);
   commandsMap.set('logs', logs);
   commandsMap.set('mover', mover);
+  commandsMap.set('rol', rol);
 
   return commandsMap;
 }
@@ -68,11 +94,22 @@ async function registerCommands() {
     console.warn(`CLIENT_ID configurado (${config.CLIENT_ID}) no coincide con el bot (${applicationId}); usando el ID del token.`);
   }
 
+  // Todos los comandos en el servidor principal
   await rest.put(
     Routes.applicationGuildCommands(applicationId, config.GUILD_ID),
     { body: commandDefs.map(cmd => cmd.toJSON()) }
   );
-  console.log('Slash commands registrados.');
+  console.log(`Comandos registrados en servidor principal (${config.GUILD_ID}).`);
+
+  // Solo /rol en el servidor de administración de roles
+  const rolCmd = commandDefs.find(cmd => cmd.name === 'rol');
+  if (rolCmd) {
+    await rest.put(
+      Routes.applicationGuildCommands(applicationId, config.GUILD_ID_ROL),
+      { body: [rolCmd.toJSON()] }
+    );
+    console.log(`Comando /rol registrado en servidor de roles (${config.GUILD_ID_ROL}).`);
+  }
 }
 
 module.exports = { registerCommands, getCommandsMap };

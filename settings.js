@@ -2,6 +2,8 @@ const SETTINGS = {
   servers: {
     // Servidor donde se registran y atienden los comandos del bot.
     main: '1435778823743340650',
+    // Servidor exclusivo para el comando /rol
+    rolAdmin: '969420681349574677',
   },
 
   roles: {
@@ -41,6 +43,12 @@ const SETTINGS = {
       '1505949443529375845',
       '1435778823743340652',
       // 'OTRO_ROL_ID',
+    ],
+
+    // Roles que pueden usar /rol en el servidor dedicado.
+    rolAdmin: [
+      '983987481961717782',
+      '1336825861466488975',
     ],
   },
 
