@@ -6,6 +6,11 @@ const SETTINGS = {
     rolAdmin: '969420681349574677',
   },
 
+  users: {
+    // Unico usuario autorizado para usar /mover.
+    mover: '852823068475785217',
+  },
+
   roles: {
     // Scouts que pueden usar /mamut en cualquier canal y el botón del panel.
     mamut: [
@@ -33,13 +38,6 @@ const SETTINGS = {
 
     // Puede recrear el panel y ver logs.
     admin: [
-      '1505949443529375845',
-      '1435778823743340652',
-      // 'OTRO_ROL_ID',
-    ],
-
-    // Puede usar /mover en cualquier canal.
-    mover: [
       '1505949443529375845',
       '1435778823743340652',
       // 'OTRO_ROL_ID',

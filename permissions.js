@@ -2,6 +2,7 @@ const settings = require('./settings');
 
 const SERVER_IDS = settings.servers;
 const ROLE_IDS = settings.roles;
+const USER_IDS = settings.users;
 
 function hasRole(member, roleId) {
   const roleIds = Array.isArray(roleId) ? roleId : [roleId];
@@ -21,7 +22,8 @@ function canViewLogs(member) {
 }
 
 function canMoveMembers(member) {
-  return hasRole(member, ROLE_IDS.mover);
+  const allowedUserIds = Array.isArray(USER_IDS.mover) ? USER_IDS.mover : [USER_IDS.mover];
+  return allowedUserIds.includes(member?.id || member?.user?.id);
 }
 
 function canSendMessage(member) {
@@ -35,6 +37,7 @@ function canManageRoles(member) {
 module.exports = {
   SERVER_IDS,
   ROLE_IDS,
+  USER_IDS,
   hasRole,
   canUseMamut,
   canManagePanel,

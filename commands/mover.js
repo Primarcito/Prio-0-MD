@@ -4,11 +4,17 @@ const { canMoveMembers } = require('../permissions');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mover')
-    .setDescription('Mueve a todas las personas de tu canal de voz actual a otro canal.')
+    .setDescription('Mueve a todas las personas de un canal de voz a otro.')
     .addChannelOption(option =>
       option.setName('destino')
         .setDescription('El canal de voz al que quieres mover a los usuarios')
         .setRequired(true)
+        .addChannelTypes(ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+    )
+    .addChannelOption(option =>
+      option.setName('origen')
+        .setDescription('Canal del que se moveran los usuarios (opcional si estas conectado)')
+        .setRequired(false)
         .addChannelTypes(ChannelType.GuildVoice, ChannelType.GuildStageVoice)
     ),
   async execute(interaction) {
@@ -19,7 +25,7 @@ module.exports = {
     }
 
     const canalDestino = interaction.options.getChannel('destino');
-    const canalOrigen = member.voice.channel;
+    const canalOrigen = interaction.options.getChannel('origen') || member.voice.channel;
 
     if (!canalOrigen) {
       return interaction.reply({ content: '❌ Debes estar conectado a un canal de voz para usar este comando.', ephemeral: true });
