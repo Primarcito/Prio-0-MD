@@ -59,6 +59,11 @@ const commandDefs = [
       option.setName('usuarios')
         .setDescription('IDs o menciones separados por espacio — solo para agregar')
         .setRequired(false)
+    )
+    .addBooleanOption(option =>
+      option.setName('confirmar')
+        .setDescription('Confirma quitar el rol a todos - obligatorio para Quitar')
+        .setRequired(false)
     ),
 ];
 
@@ -97,7 +102,7 @@ async function registerCommands() {
   // Todos los comandos en el servidor principal
   await rest.put(
     Routes.applicationGuildCommands(applicationId, config.GUILD_ID),
-    { body: commandDefs.map(cmd => cmd.toJSON()) }
+    { body: commandDefs.filter(cmd => cmd.name !== 'rol').map(cmd => cmd.toJSON()) }
   );
   console.log(`Comandos registrados en servidor principal (${config.GUILD_ID}).`);
 
