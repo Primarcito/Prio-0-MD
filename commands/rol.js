@@ -13,6 +13,26 @@ async function parseMultipleUsers(guild, input) {
   return { members, requested: ids.length, notFound: ids.length - members.length };
 }
 
+async function listAllMembers(guild) {
+  const members = [];
+  let after;
+
+  while (true) {
+    const page = await guild.members.list({ limit: 1000, after, cache: true });
+    members.push(...page.values());
+
+    if (page.size < 1000) break;
+
+    const nextAfter = page.lastKey();
+    if (!nextAfter || nextAfter === after) {
+      throw new Error('La paginacion de miembros no avanzo.');
+    }
+    after = nextAfter;
+  }
+
+  return members;
+}
+
 function formatResult(action, role, counts) {
   const parts = [`${action} **${role.name}**: ${counts.success} exitosos`];
   if (counts.unchanged) parts.push(`${counts.unchanged} sin cambios`);
@@ -107,13 +127,21 @@ module.exports = {
       }
 
       if (action === 'quitar') {
-        await interaction.guild.members.fetch();
-        const membersWithRole = interaction.guild.members.cache.filter(target =>
+        let allMembers;
+        try {
+          allMembers = await listAllMembers(interaction.guild);
+        } catch (err) {
+          console.error('[ROL] No se pudieron cargar los miembros:', err);
+          const errorCode = err.code || err.name || 'desconocido';
+          return interaction.editReply(`❌ No pude cargar todos los miembros. Código: ${errorCode}.`);
+        }
+
+        const membersWithRole = allMembers.filter(target =>
           target.id !== botMember.id && target.roles.cache.has(role.id)
         );
         let removed = 0;
         let failed = 0;
-        for (const [, target] of membersWithRole) {
+        for (const target of membersWithRole) {
           try {
             await target.roles.remove(role);
             removed++;
@@ -131,7 +159,7 @@ module.exports = {
       }
     } catch (err) {
       console.error('[ROL]', err);
-      return interaction.editReply('❌ Error al modificar roles. Revisa que el bot tenga permisos.');
+      return interaction.editReply('❌ No pude completar la operación de roles. Revisa los logs del bot.');
     }
   }
 };
