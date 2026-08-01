@@ -59,11 +59,6 @@ const commandDefs = [
       option.setName('usuarios')
         .setDescription('IDs o menciones separados por espacio — solo para agregar')
         .setRequired(false)
-    )
-    .addBooleanOption(option =>
-      option.setName('confirmar')
-        .setDescription('Confirma quitar el rol a todos - obligatorio para Quitar')
-        .setRequired(false)
     ),
 ];
 

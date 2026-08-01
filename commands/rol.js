@@ -65,14 +65,6 @@ module.exports = {
       return interaction.reply({ content: '❌ No puedo gestionar ese rol.', ephemeral: true });
     }
 
-    const confirmRemoval = interaction.options.getBoolean('confirmar') === true;
-    if (action === 'quitar' && !confirmRemoval) {
-      return interaction.reply({
-        content: '❌ Para quitar el rol a todos debes establecer `confirmar` en **Sí**.',
-        ephemeral: true
-      });
-    }
-
     await interaction.deferReply({ ephemeral: true });
 
     try {
