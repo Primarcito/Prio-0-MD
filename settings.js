@@ -9,6 +9,8 @@ const SETTINGS = {
   users: {
     // Unico usuario autorizado para usar /mover.
     mover: '852823068475785217',
+    // Unico usuario autorizado para controlar el contador de MAMUT.
+    contador: '852823068475785217',
   },
 
   roles: {

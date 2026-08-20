@@ -18,4 +18,12 @@ module.exports = {
   panelMessage: null,
   panelRepostTimeout: null,
   schedulePanelRepost: null,
+
+  // Contador persistente del canal MAMUT
+  contadorChannelId: null,
+  contadorMessageId: null,
+  contadorMessage: null,
+  contadorActivo: false,
+  contadorTimeout: null,
+  contadorInterval: null,
 };

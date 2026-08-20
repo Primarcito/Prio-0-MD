@@ -26,6 +26,11 @@ function canMoveMembers(member) {
   return allowedUserIds.includes(member?.id || member?.user?.id);
 }
 
+function canManageCountdown(member) {
+  const allowedUserIds = Array.isArray(USER_IDS.contador) ? USER_IDS.contador : [USER_IDS.contador];
+  return allowedUserIds.includes(member?.id || member?.user?.id);
+}
+
 function canSendMessage(member) {
   return hasRole(member, ROLE_IDS.mensaje);
 }
@@ -43,6 +48,7 @@ module.exports = {
   canManagePanel,
   canViewLogs,
   canMoveMembers,
+  canManageCountdown,
   canSendMessage,
   canManageRoles,
 };

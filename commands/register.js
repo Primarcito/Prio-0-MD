@@ -37,6 +37,8 @@ const commandDefs = [
 
   require('./mover').data,
 
+  require('./contador').data,
+
   new SlashCommandBuilder()
     .setName('rol')
     .setDescription('Gestiona roles en el servidor')
@@ -73,6 +75,7 @@ function getCommandsMap() {
   const logs = require('./logs');
   const mover = require('./mover');
   const rol = require('./rol');
+  const contador = require('./contador');
 
   commandsMap.set('mamut', mamut);
   commandsMap.set('mensaje', mensaje);
@@ -81,6 +84,7 @@ function getCommandsMap() {
   commandsMap.set('logs', logs);
   commandsMap.set('mover', mover);
   commandsMap.set('rol', rol);
+  commandsMap.set('contador', contador);
 
   return commandsMap;
 }

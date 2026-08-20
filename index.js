@@ -7,6 +7,7 @@ const {
   cargarHistorial,
   cargarPanel,
   cargarPrioTemporal,
+  cargarContador,
   guardarPanel,
 } = require('./data/persistence');
 const { registerCommands, getCommandsMap } = require('./commands/register');
@@ -14,6 +15,7 @@ const handleButton = require('./handlers/buttonHandler');
 const handleSelect = require('./handlers/selectHandler');
 const { buildPanel } = require('./embeds/mamutEmbeds');
 const { restaurarPrioTemporal } = require('./utils/prioTemporal');
+const { restaurarContador } = require('./utils/contador');
 
 /* ================= CREAR CLIENT ================= */
 
@@ -244,6 +246,7 @@ client.once('clientReady', async () => {
   }
 
   // Si no se recuperó, crear nuevo. Si se recuperó, actualizar contenido.
+  await restaurarContador(guild);
   await sincronizarPanel(guild);
 
   // Auto-actualización del panel cada hora (edita en lugar de recrear)
@@ -260,6 +263,7 @@ async function main() {
     await cargarHistorial();
     await cargarPanel();
     await cargarPrioTemporal();
+    await cargarContador();
     await registerCommands();
     await client.login(config.TOKEN);
   } catch (err) {

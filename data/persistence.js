@@ -10,6 +10,7 @@ const TABLE_NAME = 'bot_state';
 const KEYS = {
   historial: 'historial_mamut',
   panel: 'panel',
+  contador: 'contador',
   prioTemporal: 'prio_temporal',
   historialRecovery: 'historial_recovery_2026_07_10',
 };
@@ -76,6 +77,7 @@ async function inicializarPersistencia() {
 async function migrarJsonLocalSiHaceFalta() {
   await migrarArchivoSiHaceFalta(KEYS.historial, config.HISTORIAL_FILE, []);
   await migrarArchivoSiHaceFalta(KEYS.panel, config.PANEL_FILE, {});
+  await migrarArchivoSiHaceFalta(KEYS.contador, config.CONTADOR_FILE, {});
   await migrarArchivoSiHaceFalta(KEYS.prioTemporal, config.PRIO_TEMPORAL_FILE, []);
 }
 
@@ -212,6 +214,25 @@ async function cargarPanel() {
   state.panelMessageId = data?.messageId || null;
 }
 
+async function guardarContador() {
+  await saveState(
+    KEYS.contador,
+    {
+      channelId: state.contadorChannelId,
+      messageId: state.contadorMessageId,
+      activo: state.contadorActivo,
+    },
+    config.CONTADOR_FILE
+  );
+}
+
+async function cargarContador() {
+  const data = await loadState(KEYS.contador, config.CONTADOR_FILE, {});
+  state.contadorChannelId = data?.channelId || null;
+  state.contadorMessageId = data?.messageId || null;
+  state.contadorActivo = data?.activo === true;
+}
+
 async function guardarPrioTemporal() {
   await saveState(
     KEYS.prioTemporal,
@@ -231,6 +252,8 @@ module.exports = {
   cargarHistorial,
   guardarPanel,
   cargarPanel,
+  guardarContador,
+  cargarContador,
   guardarPrioTemporal,
   cargarPrioTemporal,
 };

@@ -50,6 +50,7 @@ module.exports = {
   HISTORIAL_FILE: 'historial.json',
   PANEL_FILE: 'panel.json',
   PRIO_TEMPORAL_FILE: 'prio-temporal.json',
+  CONTADOR_FILE: 'contador.json',
 
   // Límites
   MAX_HISTORIAL: 50,
@@ -59,4 +60,7 @@ module.exports = {
   PRIO_TEMPORAL_MS: 20 * 60 * 1000, // 20 minutos
   PANEL_REPOST_AFTER_MAMUT_MS: 10 * 60 * 1000, // 10 minutos
   AUTO_PANEL_INTERVAL_MS: 60 * 60 * 1000, // 1 hora
+  CONTADOR_INTERVAL_MS: 60 * 1000, // 1 minuto
+  CONTADOR_TARGET_MS: Date.UTC(2026, 7, 31, 10, 0, 0),
+  CONTADOR_TARGET_UNIX: 1788170400,
 };
