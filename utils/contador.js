@@ -34,6 +34,17 @@ function clearContadorTimers() {
   state.contadorInterval = null;
 }
 
+function isUnknownMessageError(err) {
+  return err?.code === 10008 || err?.rawError?.code === 10008 || err?.status === 404;
+}
+
+async function clearContadorMessageReference() {
+  state.contadorChannelId = null;
+  state.contadorMessageId = null;
+  state.contadorMessage = null;
+  await guardarContador();
+}
+
 async function getContadorChannel(guild) {
   const channel = await guild.channels.fetch(config.CANAL_PERMITIDO).catch(err => {
     console.error('[CONTADOR] No se pudo obtener el canal MAMUT:', err.message);
@@ -73,10 +84,7 @@ async function recoverContadorMessage(channel) {
   }
 
   if (state.contadorMessageId || state.contadorChannelId) {
-    state.contadorChannelId = null;
-    state.contadorMessageId = null;
-    state.contadorMessage = null;
-    await guardarContador();
+    await clearContadorMessageReference();
   }
   return null;
 }
@@ -86,6 +94,17 @@ async function sincronizarContador(guild, { createIfMissing = false } = {}) {
   let message = await recoverContadorMessage(channel);
   const content = buildContadorContent();
 
+  if (message) {
+    try {
+      await message.edit({ content });
+    } catch (err) {
+      if (!isUnknownMessageError(err)) throw err;
+      console.log('[CONTADOR] El mensaje fue eliminado; se creará uno nuevo.');
+      await clearContadorMessageReference();
+      message = null;
+    }
+  }
+
   if (!message && createIfMissing) {
     message = await channel.send({ content });
     state.contadorChannelId = channel.id;
@@ -93,8 +112,6 @@ async function sincronizarContador(guild, { createIfMissing = false } = {}) {
     state.contadorMessage = message;
     await guardarContador();
     console.log('[CONTADOR] Mensaje creado.');
-  } else if (message) {
-    await message.edit({ content });
   }
 
   if (state.contadorActivo && Date.now() >= config.CONTADOR_TARGET_MS) {
@@ -164,6 +181,7 @@ async function restaurarContador(guild) {
 
 module.exports = {
   buildContadorContent,
+  isUnknownMessageError,
   iniciarContador,
   detenerContador,
   actualizarContador,

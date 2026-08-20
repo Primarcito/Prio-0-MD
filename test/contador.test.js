@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const config = require('../config');
-const { buildContadorContent } = require('../utils/contador');
+const { buildContadorContent, isUnknownMessageError } = require('../utils/contador');
 const { canManageCountdown } = require('../permissions');
 
 test('muestra dias, horas y minutos con Markdown de Discord', () => {
@@ -30,4 +30,11 @@ test('reemplaza el contador al llegar a cero', () => {
 test('solo autoriza al usuario configurado', () => {
   assert.equal(canManageCountdown({ id: '852823068475785217' }), true);
   assert.equal(canManageCountdown({ id: 'otro-usuario' }), false);
+});
+
+test('reconoce el error de Discord cuando el mensaje fue eliminado', () => {
+  assert.equal(isUnknownMessageError({ code: 10008 }), true);
+  assert.equal(isUnknownMessageError({ rawError: { code: 10008 } }), true);
+  assert.equal(isUnknownMessageError({ status: 404 }), true);
+  assert.equal(isUnknownMessageError({ code: 50013 }), false);
 });
